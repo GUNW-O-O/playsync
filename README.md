@@ -1,4 +1,6 @@
-# Self-Next.js
-TodoList
-SSR -> vue.js || react
-데이터 수집??
+# 프로젝트
+FrontEnd -> Vercel
+BackEnd -> Fly.io
+
+CI/CD
+Docker
