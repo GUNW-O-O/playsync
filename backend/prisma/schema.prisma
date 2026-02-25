@@ -1,0 +1,156 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+
+enum Role {
+  USER
+  STORE_ADMIN
+  PLATFORM_ADMIN
+}
+
+enum SessionType {
+  TOURNAMENT
+  SIT_AND_GO
+}
+
+enum TournamentStatus {
+  PENDING
+  ONGOING
+  FINISHED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  nickname  String   @unique
+  password  String
+  role      Role     @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  storeAdminOf Store[] @relation("StoreAdmins")
+
+  participations TournamentParticipation[]
+  tablePlayers   TablePlayer[]
+}
+
+model Store {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  admins          User[]          @relation("StoreAdmins")
+  physicalTables  PhysicalTable[]
+  sessions        GameSession[]
+}
+
+model PhysicalTable {
+  id        String  @id @default(uuid())
+  number    Int    
+  seatCount Int
+
+  store   Store  @relation(fields: [storeId], references: [id])
+  storeId String
+
+  sessionTables SessionTable[]
+
+  @@unique([storeId, number])
+}
+
+model GameSession {
+  id        String      @id @default(uuid())
+  type      SessionType
+  createdAt DateTime    @default(now())
+
+  store   Store  @relation(fields: [storeId], references: [id])
+  storeId String
+
+  sessionTables SessionTable[]
+
+  tournament Tournament?
+}
+
+model Tournament {
+  id            String           @id
+  status        TournamentStatus @default(PENDING)
+
+  maxPlayers    Int
+  startStack    Int
+  blindTime     Int
+
+  allowRebuy    Boolean          @default(false)
+  rebuyUntilLv  Int?
+
+  createdAt     DateTime         @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+
+  session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
+
+  participations TournamentParticipation[]
+}
+
+model TournamentParticipation {
+  id        String @id @default(uuid())
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  tournamentId String
+
+  buyInCount   Int      @default(1)
+  totalBuyIn   Int
+
+  finalRank    Int?
+  prizeAmount  Int?
+
+  eliminatedAt DateTime?
+
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, tournamentId])
+}
+
+model SessionTable {
+  id String @id @default(uuid())
+
+  session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+
+  physicalTable   PhysicalTable @relation(fields: [physicalTableId], references: [id])
+  physicalTableId String
+
+  tablePlayers TablePlayer[]
+}
+
+model TablePlayer {
+  id String @id @default(uuid())
+
+  sessionTable   SessionTable @relation(fields: [sessionTableId], references: [id], onDelete: Cascade)
+  sessionTableId String
+
+  user   User   @relation(fields: [userId], references: [id])
+  userId String
+
+  seatPosition Int
+  currentStack Int
+  isBusted     Boolean @default(false)
+
+  joinedAt DateTime @default(now())
+
+  @@unique([sessionTableId, seatPosition])
+}
