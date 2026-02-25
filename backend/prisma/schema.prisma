@@ -15,7 +15,6 @@ datasource db {
 
 enum Role {
   USER
-  STORE_ADMIN
   PLATFORM_ADMIN
 }
 
@@ -24,7 +23,7 @@ enum SessionType {
   SIT_AND_GO
 }
 
-enum TournamentStatus {
+enum SessionStatus {
   PENDING
   ONGOING
   FINISHED
@@ -39,10 +38,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
-  storeAdminOf Store[] @relation("StoreAdmins")
-
-  participations TournamentParticipation[]
+  participations SessionParticipation[]
   tablePlayers   TablePlayer[]
 }
 
@@ -51,15 +47,13 @@ model Store {
   name      String   @unique
   createdAt DateTime @default(now())
 
-  // Relations
-  admins          User[]          @relation("StoreAdmins")
-  physicalTables  PhysicalTable[]
-  sessions        GameSession[]
+  physicalTables PhysicalTable[]
+  sessions       GameSession[]
 }
 
 model PhysicalTable {
-  id        String  @id @default(uuid())
-  number    Int    
+  id        String @id @default(uuid())
+  number    Int
   seatCount Int
 
   store   Store  @relation(fields: [storeId], references: [id])
@@ -71,58 +65,68 @@ model PhysicalTable {
 }
 
 model GameSession {
-  id        String      @id @default(uuid())
+  id        String        @id @default(uuid())
   type      SessionType
-  createdAt DateTime    @default(now())
+  status    SessionStatus @default(PENDING)
+
+  startStack Int
+  blindTime  Int
+
+  createdAt DateTime @default(now())
+  startedAt DateTime?
+  finishedAt DateTime?
 
   store   Store  @relation(fields: [storeId], references: [id])
   storeId String
 
   sessionTables SessionTable[]
+  participations SessionParticipation[]
 
   tournament Tournament?
+  sitAndGo   SitAndGo?
 }
 
 model Tournament {
-  id            String           @id
-  status        TournamentStatus @default(PENDING)
+  id String @id
 
-  maxPlayers    Int
-  startStack    Int
-  blindTime     Int
+  maxPlayers   Int
+  allowRebuy   Boolean @default(false)
+  rebuyUntilLv Int?
 
-  allowRebuy    Boolean          @default(false)
-  rebuyUntilLv  Int?
-
-  createdAt     DateTime         @default(now())
-  startedAt     DateTime?
-  finishedAt    DateTime?
+  registrationEndAt DateTime?
 
   session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
-
-  participations TournamentParticipation[]
 }
 
-model TournamentParticipation {
-  id        String @id @default(uuid())
+model SitAndGo {
+  id String @id
+
+  minPlayers Int
+  maxPlayers Int
+
+  session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+model SessionParticipation {
+  id String @id @default(uuid())
 
   user   User   @relation(fields: [userId], references: [id])
   userId String
 
-  tournament   Tournament @relation(fields: [tournamentId], references: [id])
-  tournamentId String
+  session   GameSession @relation(fields: [sessionId], references: [id])
+  sessionId String
 
-  buyInCount   Int      @default(1)
-  totalBuyIn   Int
+  buyInCount Int @default(1)
+  totalBuyIn Int
 
-  finalRank    Int?
-  prizeAmount  Int?
+  finalRank   Int?
+  prizeAmount Int?
 
   eliminatedAt DateTime?
 
-  createdAt    DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  @@unique([userId, tournamentId])
+  @@unique([userId, sessionId])
 }
 
 model SessionTable {
