@@ -22,4 +22,8 @@ export class AuthService {
     
     return { id : user.id, nickname : user.nickname };
   }
+
+  async signinStoreAdmin(dto: CreateUserDto) {
+    return this.userService.createStoreAdmin(dto.nickname, dto.password);
+  }
 }

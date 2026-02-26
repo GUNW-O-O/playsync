@@ -5,9 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider        = "prisma-client"
-  output          = "../src/generated/prisma"
-  moduleFormat    = "cjs"
+  provider        = "prisma-client-js"
 }
 
 datasource db {
@@ -17,6 +15,7 @@ datasource db {
 
 enum Role {
   USER
+  STORE_ADMIN
   PLATFORM_ADMIN
 }
 
@@ -42,12 +41,16 @@ model User {
 
   participations SessionParticipation[]
   tablePlayers   TablePlayer[]
+  stores         Store[]
 }
 
 model Store {
   id        String   @id @default(uuid())
   name      String   @unique
   createdAt DateTime @default(now())
+
+  owner     User     @relation(fields: [ownerId], references: [id])
+  ownerId   String
 
   physicalTables PhysicalTable[]
   sessions       GameSession[]

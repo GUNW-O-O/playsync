@@ -11,7 +11,7 @@ export class AuthController {
   @UsePipes(new ValidationPipe({ whitelist : true }))
   async signup(@Body() dto : CreateUserDto) {
     const user = await this.authService.signup(dto);
-    return { id : user.id, nickname : user.nickname };
+    return { nickname : user.nickname };
   }
 
   @Post('signin')
@@ -19,4 +19,12 @@ export class AuthController {
   async signin(@Body() dto : LoginUserDto) {
     return this.authService.signin(dto);
   }
+
+  @Post('join')
+  @UsePipes(new ValidationPipe({ whitelist : true }))
+  async storeOwnerSignin(@Body() dto : CreateUserDto) {
+    const storeOwner = await this.authService.signinStoreAdmin(dto);
+    return { nickname : storeOwner.nickname}
+  }
+
 }
