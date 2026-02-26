@@ -61,7 +61,7 @@ model PhysicalTable {
   number    Int
   seatCount Int
 
-  store   Store  @relation(fields: [storeId], references: [id])
+  store   Store  @relation(fields: [storeId], references: [id] onDelete: Cascade)
   storeId String
 
   sessionTables SessionTable[]
@@ -77,11 +77,14 @@ model GameSession {
   startStack Int
   blindTime  Int
 
+  currentLevel Int          @default(1)
+  lastBlindUpAt DateTime?
+
   createdAt DateTime @default(now())
   startedAt DateTime?
   finishedAt DateTime?
 
-  store   Store  @relation(fields: [storeId], references: [id])
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
   storeId String
 
   sessionTables SessionTable[]
@@ -93,6 +96,8 @@ model GameSession {
 
 model Tournament {
   id String @id
+
+  blindStructure Json?
 
   maxPlayers   Int
   allowRebuy   Boolean @default(false)
@@ -139,6 +144,9 @@ model SessionTable {
 
   session   GameSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sessionId String
+
+  dealerCode String?       // 예: "1234" (매장 관리자 화면에 표시)
+  dealerToken String?     @unique // 실제 태블릿 브라우저 세션 인증용 (UUID)
 
   physicalTable   PhysicalTable @relation(fields: [physicalTableId], references: [id])
   physicalTableId String

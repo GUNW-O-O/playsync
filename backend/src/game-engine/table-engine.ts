@@ -10,7 +10,30 @@ export class TableEngine {
     public smallBlind: number = 50,
     public rebuyCallback?: RebuyCallback
   ) { }
+  
+  public nextPhase() {
+    const phases = [GamePhase.PRE_FLOP, GamePhase.FLOP, GamePhase.TURN, GamePhase.RIVER, GamePhase.SHOWDOWN];
+    const currentIndex = phases.indexOf(this.state.phase);
 
+    if (currentIndex < phases.length - 1) {
+      this.state.phase = phases[currentIndex + 1];
+      // 단계가 넘어갈 때마다 플레이어들의 bet을 0으로 초기화하여 다음 라운드 준비
+      this.state.players.forEach(p => p.bet = 0);
+      this.state.currentBet = 0;
+    }
+  }
+
+  public resolveWinner(winnerIds: string[]) {
+    const winners = this.state.players.filter(p => winnerIds.includes(p.id));
+    const winAmount = Math.floor(this.state.pot / winners.length);
+
+    winners.forEach(w => {
+      w.stack += winAmount;
+    });
+
+    this.state.pot = 0;
+    this.handleHandEnd(); // 다음 핸드 준비 및 리바인 체크
+  }
   // 플레이어 액션 처리
   public async act(playerIndex: number, action: ActionInput, raiseAmount?: number) {
     const player = this.state.players[playerIndex];

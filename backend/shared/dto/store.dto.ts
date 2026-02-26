@@ -5,13 +5,15 @@ export class CreateStoreDto {
   @MinLength(2)
   storeName: string;
 
+  @IsString()
   ownerId: string;
 }
 
-export class updateStoreDto {
+export class UpdateStoreDto {
   @IsString()
   @MinLength(2)
   storeName : string;
   
+  @IsString()
   ownerId : string;
 }
