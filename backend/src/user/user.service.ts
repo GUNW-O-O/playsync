@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -19,6 +19,14 @@ export class UserService {
   
   async findByNickname(nickname: string) {
     return this.prisma.user.findUnique({ where: {nickname} });
+  }
+
+  async findByUUID( id : string ) {
+    const user = this.prisma.user.findUnique({ where : {id}});
+    if(!user) {
+      throw new NotFoundException('UUID 조회 실패');
+    }
+    return user;
   }
   
   async createStoreAdmin(nickname : string, password: string) {
