@@ -10,7 +10,7 @@ export class TableEngine {
     public smallBlind: number = 50,
     public rebuyCallback?: RebuyCallback
   ) { }
-  
+
   public nextPhase() {
     const phases = [GamePhase.PRE_FLOP, GamePhase.FLOP, GamePhase.TURN, GamePhase.RIVER, GamePhase.SHOWDOWN];
     const currentIndex = phases.indexOf(this.state.phase);
@@ -21,6 +21,16 @@ export class TableEngine {
       this.state.players.forEach(p => p.bet = 0);
       this.state.currentBet = 0;
     }
+  }
+
+  // 중간에 유저가 앉을 때 (밸런싱 혹은 늦은 참가)
+  public addPlayer(player: EnginePlayer, seatIndex: number) {
+    this.state.players[seatIndex] = player;
+  }
+
+  // 유저가 나갈 때 (탈락 혹은 테이블 이동)
+  public removePlayer(seatIndex: number) {
+    this.state.players[seatIndex] = null; // 자리는 비우되 인덱스는 유지
   }
 
   public resolveWinner(winnerIds: string[]) {

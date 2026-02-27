@@ -31,7 +31,7 @@ export interface EnginePlayer {
 
 export interface HandState {
   phase : GamePhase;
-  players : EnginePlayer[];
+  players : (EnginePlayer | null)[];
   buttonIndex : number;
   currentTurnIndex : number;
   pot : number;
