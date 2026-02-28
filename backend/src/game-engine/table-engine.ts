@@ -7,7 +7,6 @@ type RebuyCallback = (playerId: string) => Promise<number> | number;
 export class TableEngine {
   constructor(
     public state: HandState,
-    public smallBlind: number = 50,
     public rebuyCallback?: RebuyCallback
   ) { }
 
@@ -47,6 +46,12 @@ export class TableEngine {
   // 플레이어 액션 처리
   public async act(playerIndex: number, action: ActionInput, raiseAmount?: number) {
     const player = this.state.players[playerIndex];
+
+    if (action.type === ActionType.DEALER_FOLD) {
+      player.hasFolded = true;
+      this.state.currentTurnIndex = this.getNextTurnIndex();
+      return this.state;
+    }
 
     if (player.hasFolded || player.stack <= 0 || this.state.currentTurnIndex !== playerIndex) {
       throw new Error("Invalid action: not your turn or inactive player");
@@ -172,6 +177,22 @@ export class TableEngine {
     const sbIndex = (this.state.buttonIndex + 1) % total;
     const bbIndex = (this.state.buttonIndex + 2) % total;
     const bbAmount = this.smallBlind * 2;
+
+    // 앤티 존재, 프리플랍 시 강제 징수
+    if(this.state.ante > 0) {
+      this.state.players.forEach(p => {
+        if (p && p.stack < this.state.ante) {
+          this.state.pot += p.stack;
+          p.stack = 0;
+          p.isAllIn = true;
+        }
+        if (p && p.stack > 0) {
+          const postedAnte = Math.min(p.stack, this.state.ante);
+          p.stack -= postedAnte;
+          this.state.pot += postedAnte;
+        }
+      });
+    }
 
     // 플레이어 상태 초기화 및 OUT 처리
     this.state.players.forEach(p => {

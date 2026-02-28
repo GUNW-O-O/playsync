@@ -32,7 +32,6 @@ enum TransactionType {
 enum SessionStatus {
   PENDING   // 생성 직후, 바이인 대기
   ONGOING   // 게임 진행 중
-  BREAK     // 전 테이블 휴식 시간
   SYNCING   // 테이블 이동/밸런싱 대기 상태
   FINISHED  // 최종 종료 (영구 데이터 보존 상태)
 }
@@ -83,10 +82,21 @@ model Store {
   createdAt      DateTime        @default(now())
 }
 
+model BlindStructure {
+  id  String  @id @default(uuid())
+  name String  @unique
+
+  structure Json  // [{lv:1, sb:100, ante:false, duration:10}, ...]
+
+  storeId String
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+}
+
 model PhysicalTable {
   id        String @id @default(uuid())
   number    Int    // 매장 내 고유 번호
-  seatCount Int    // 9인용, 11인용 등
 
   storeId   String
   store     Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -98,20 +108,19 @@ model PhysicalTable {
 
 model GameSession {
   id             String        @id @default(uuid())
+  name           String
   type           SessionType
   status         SessionStatus @default(PENDING)
   
-  startStack     Int
-  blindTime      Int           // 블라인드 업 주기(분)
+
+  // 실시간 전광판용 데이터
+  activePlayers     Int     @default(0)
+  totalEntries      Int     @default(0)
+  avgStack          Int
+  totalBuyinAmount  Int     @default(0)    // 바이인 누적 총 금액
+  isRegistrationOpen Boolean @default(true) // 레지 마감 여부
   
-  // JSON Structure: [{lv:1, sb:50, bb:100, ante:100, isBreak: false}, ...]
-  blindStructure Json?
-
-  // 실시간 엔진 동기화 데이터
-  currentLevel   Int           @default(1)
-  lastBlindUpAt  DateTime?     // 마지막 블라인드 상승 시점
-  dealerOtp      String?       // 전 테이블 공통 딜러 인증 코드
-
+  dealerOtp      Int       // 전 테이블 공통 딜러 인증 코드(짧은 숫자)
   storeId        String
   store          Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
@@ -126,28 +135,6 @@ model GameSession {
   finishedAt     DateTime?
 }
 
-model Tournament {
-  id                String  @id // GameSession ID 1:1
-  itmCount          Int     // In The Money (상금권 인원)
-  breakTimeInterval Int     // 예: 4레벨마다 휴식
-  maxTables         Int     
-  maxPlayers        Int
-  
-  allowRebuy        Boolean @default(false)
-  rebuyUntilLv      Int?    // 리바인 마감 레벨
-
-
-  session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
-}
-
-model SitAndGo {
-  id         String  @id // GameSession ID 1:1
-  minPlayers Int
-  maxPlayers Int
-  isLocked   Boolean @default(false) // 시작 시 추가 인원 유입 차단
-
-  session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
-}
 
 model SessionParticipation {
   id           String              @id @default(uuid())
@@ -157,13 +144,12 @@ model SessionParticipation {
   session      GameSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   buyInPoints  Int                 @default(0) // 지불한 총 포인트 누적
-  buyInCount   Int                 @default(1) // 바이인 + 리바인 횟수
   
   status       ParticipationStatus @default(WAITING)
-  finalRank    Int?
+  
+  finalRank    Int?                @default(null) // 최종등수
   prizePoints  Int?                @default(0) // 최종 획득 상금
   
-  eliminatedAt DateTime?
   createdAt    DateTime            @default(now())
 
   @@unique([userId, sessionId])
@@ -177,10 +163,6 @@ model SessionTable {
   physicalTableId String
   physicalTable   PhysicalTable @relation(fields: [physicalTableId], references: [id])
 
-  isHandOngoing   Boolean      @default(false) // 핸드 진행 중 (블라인드 상승 시 대기 체크용)
-  needsSync       Boolean      @default(false) // 테이블 밸런싱/휴식 대기 여부
-  dealerToken     String?      @unique         // 딜러 세션 식별
-
   tablePlayers    TablePlayer[]
 }
 
@@ -192,12 +174,30 @@ model TablePlayer {
   userId          String
   user            User         @relation(fields: [userId], references: [id])
 
-  seatPosition    Int          // 0~9
+  seatPosition    Int          // 1~9
   currentStack    Int          // 실시간 칩 스택
-  isBusted        Boolean      @default(false)
+  isEliminated    Boolean      @default(false)
 
   joinedAt        DateTime     @default(now())
 
   @@unique([sessionTableId, seatPosition])
   @@unique([sessionTableId, userId])
+}
+
+model Tournament {
+  id                String  @id // GameSession ID 1:1
+
+  maxTables         Int     
+  maxPlayers        Int
+  
+  session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
+}
+
+model SitAndGo {
+  id         String  @id // GameSession ID 1:1
+
+  minPlayers Int
+  maxPlayers Int
+
+  session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
 }

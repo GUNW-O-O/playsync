@@ -5,8 +5,7 @@ export enum GamePhase {
   TURN,
   RIVER,
   SHOWDOWN,
-  HAND_END,
-  OUT
+  HAND_END
 }
 
 export enum ActionType {
@@ -14,7 +13,9 @@ export enum ActionType {
   CALL,
   FOLD,
   ALL_IN,
-  RAISE
+  RAISE,
+  DEALER_KICK,
+  DEALER_FOLD
 }
 
 export type ActionInput = {
@@ -23,6 +24,8 @@ export type ActionInput = {
 
 export interface EnginePlayer {
   id : string;
+  userId: string;
+  nickname: string;
   stack : number;
   bet : number;
   hasFolded : boolean;
@@ -35,5 +38,13 @@ export interface HandState {
   buttonIndex : number;
   currentTurnIndex : number;
   pot : number;
+  sidePots: SidePot[];
   currentBet : number;
+  minRaise : number;
+  ante : number;
+}
+
+export interface SidePot {
+  amount: number;
+  eligiblePlayerIds: string[];
 }
