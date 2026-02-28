@@ -12,6 +12,7 @@ datasource db {
 
 enum Role {
   USER
+  DEALER
   STORE_ADMIN
   PLATFORM_ADMIN
 }
@@ -111,7 +112,9 @@ model GameSession {
   name           String
   type           SessionType
   status         SessionStatus @default(PENDING)
-  
+
+  blindStructure BlindStructure @relation(fields: [blindId], references: [id])
+  blindId        String?
 
   // 실시간 전광판용 데이터
   activePlayers     Int     @default(0)
@@ -124,8 +127,10 @@ model GameSession {
   storeId        String
   store          Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  sessionTables  SessionTable[]
-  participations SessionParticipation[]
+  sessionTables   SessionTable[]
+  participations  SessionParticipation[]
+  activeDealers   DealerSession[]
+  blindStructures BlindStructure[]
 
   tournament     Tournament?
   sitAndGo       SitAndGo?
@@ -155,6 +160,23 @@ model SessionParticipation {
   @@unique([userId, sessionId])
 }
 
+model DealerSession {
+  id              String       @id @default(uuid())
+  sessionId       String
+  session         GameSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  physicalTableId String       // 딜러가 맡은 물리 테이블 ID
+  
+  // 딜러 식별용 토큰 (회원가입 대신 발급되는 임시 권한 증표)
+  // 세션 접속 시점에 생성되어 딜러의 브라우저/태블릿 LocalStorage에 저장
+  authToken       String       @unique @default(uuid())
+  
+  createdAt       DateTime     @default(now())
+  lastActiveAt    DateTime     @updatedAt
+
+  @@unique([sessionId, physicalTableId]) // 한 테이블엔 한 명의 딜러만
+}
+
 model SessionTable {
   id              String       @id @default(uuid())
   sessionId       String
@@ -174,7 +196,7 @@ model TablePlayer {
   userId          String
   user            User         @relation(fields: [userId], references: [id])
 
-  seatPosition    Int          // 1~9
+  seatPosition    Int          // 1~9 (9인테이블)
   currentStack    Int          // 실시간 칩 스택
   isEliminated    Boolean      @default(false)
 

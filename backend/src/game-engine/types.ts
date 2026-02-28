@@ -13,38 +13,39 @@ export enum ActionType {
   CALL,
   FOLD,
   ALL_IN,
+  BET,
   RAISE,
   DEALER_KICK,
-  DEALER_FOLD
+  DEALER_FOLD,
+  ELIMINATED
 }
 
 export type ActionInput = {
   type : ActionType;
 }
 
-export interface EnginePlayer {
+export interface TablePlayer {
   id : string;
   userId: string;
-  nickname: string;
   stack : number;
   bet : number;
   hasFolded : boolean;
   isAllIn : boolean;
+  button : boolean;
 }
 
-export interface HandState {
+export interface TableState {
   phase : GamePhase;
-  players : (EnginePlayer | null)[];
-  buttonIndex : number;
-  currentTurnIndex : number;
+  players : (TablePlayer | null)[];
+  buttonUser : number;
+  currentTurnSeatIndex : number;
   pot : number;
   sidePots: SidePot[];
   currentBet : number;
-  minRaise : number;
   ante : number;
 }
 
 export interface SidePot {
   amount: number;
-  eligiblePlayerIds: string[];
+  relevantPlayerIds: string[];
 }
