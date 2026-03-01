@@ -142,7 +142,6 @@ CREATE TABLE "Tournament" (
     "id" TEXT NOT NULL,
     "totalBuyinAmount" INTEGER NOT NULL DEFAULT 0,
     "maxTables" INTEGER NOT NULL,
-    "maxPlayers" INTEGER NOT NULL,
 
     CONSTRAINT "Tournament_pkey" PRIMARY KEY ("id")
 );
@@ -151,7 +150,6 @@ CREATE TABLE "Tournament" (
 CREATE TABLE "SitAndGo" (
     "id" TEXT NOT NULL,
     "minPlayers" INTEGER NOT NULL,
-    "maxPlayers" INTEGER NOT NULL,
 
     CONSTRAINT "SitAndGo_pkey" PRIMARY KEY ("id")
 );

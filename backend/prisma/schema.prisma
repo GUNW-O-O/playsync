@@ -120,10 +120,12 @@ model GameSession {
   blindStructure BlindStructure? @relation(fields: [blindId], references: [id])
   blindId        String?
 
+  startStack     Int           @default(0)
+
   // 실시간 전광판용 데이터
   activePlayers     Int     @default(0)
   totalPlayers      Int     @default(0)
-  avgStack          Int
+  avgStack          Int     @default(0)
   isRegistrationOpen Boolean @default(true) // 레지 마감 여부
   
   dealerOtp      Int       // 전 테이블 공통 딜러 인증 코드(짧은 숫자)
@@ -198,7 +200,7 @@ model TablePlayer {
   userId          String
   user            User         @relation(fields: [userId], references: [id])
 
-  seatPosition    Int          // 1~9 (9인테이블)
+  seatPosition    Int          // 0~8 (9인테이블)
   currentStack    Int          // 실시간 칩 스택
   isEliminated    Boolean      @default(false)
 
@@ -212,10 +214,8 @@ model Tournament {
   id                String  @id // GameSession ID 1:1
 
   totalBuyinAmount  Int     @default(0)    // 바이인 누적 총 금액
+  rebuyUntil       Int     @default(0)
 
-  maxTables         Int     
-  maxPlayers        Int
-  
   session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
@@ -223,7 +223,6 @@ model SitAndGo {
   id         String  @id // GameSession ID 1:1
 
   minPlayers Int
-  maxPlayers Int
 
   session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
 }
