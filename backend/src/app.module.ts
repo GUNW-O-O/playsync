@@ -10,9 +10,10 @@ import { StoreModule } from './store/store.module';
 import { RedisModule } from './redis/redis.module';
 import { GameserviceService } from './gameservice/gameservice.service';
 import { GameEngineService } from './game-engine/game-engine.service';
+import { SessionModule } from './store/session/session.module';
 
 @Module({
-  imports: [UserModule, AuthModule, PrismaModule, StoreModule, RedisModule],
+  imports: [UserModule, AuthModule, PrismaModule, StoreModule, RedisModule, SessionModule],
   controllers: [AppController, StoreController],
   providers: [AppService, StoreService, GameserviceService, GameEngineService],
 })

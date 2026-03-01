@@ -63,17 +63,16 @@ export class StoreService {
     return await this.prisma.physicalTable.create({
       data: {
         number: dto.number,
-        seatCount: dto.seatCount,
         storeId: storeId,
       }
     });
   }
 
-  async updateTable(storeId: string, tableId: string, seatCount: number) {
+  async updateTable(storeId: string, tableId: string, tableNumber: number) {
     await this.isStoreOwnTable(storeId, tableId);
     return await this.prisma.physicalTable.update({
       where: { id: tableId },
-      data: { seatCount },
+      data: { number: tableNumber },
     });
   }
 

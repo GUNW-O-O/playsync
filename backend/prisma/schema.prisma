@@ -80,6 +80,8 @@ model Store {
   owner          User            @relation(fields: [ownerId], references: [id])
   physicalTables PhysicalTable[]
   sessions       GameSession[]
+  blindStructures BlindStructure[]
+
   createdAt      DateTime        @default(now())
 }
 
@@ -91,6 +93,8 @@ model BlindStructure {
 
   storeId String
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  sessions GameSession[]
 
   createdAt DateTime @default(now())
 }
@@ -113,14 +117,13 @@ model GameSession {
   type           SessionType
   status         SessionStatus @default(PENDING)
 
-  blindStructure BlindStructure @relation(fields: [blindId], references: [id])
+  blindStructure BlindStructure? @relation(fields: [blindId], references: [id])
   blindId        String?
 
   // 실시간 전광판용 데이터
   activePlayers     Int     @default(0)
-  totalEntries      Int     @default(0)
+  totalPlayers      Int     @default(0)
   avgStack          Int
-  totalBuyinAmount  Int     @default(0)    // 바이인 누적 총 금액
   isRegistrationOpen Boolean @default(true) // 레지 마감 여부
   
   dealerOtp      Int       // 전 테이블 공통 딜러 인증 코드(짧은 숫자)
@@ -130,7 +133,6 @@ model GameSession {
   sessionTables   SessionTable[]
   participations  SessionParticipation[]
   activeDealers   DealerSession[]
-  blindStructures BlindStructure[]
 
   tournament     Tournament?
   sitAndGo       SitAndGo?
@@ -148,11 +150,11 @@ model SessionParticipation {
   sessionId    String
   session      GameSession         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  buyInPoints  Int                 @default(0) // 지불한 총 포인트 누적
+  buyInCount   Int                 @default(0) // 지불한 총 포인트 누적
   
   status       ParticipationStatus @default(WAITING)
   
-  finalRank    Int?                @default(null) // 최종등수
+  finalRank    Int?
   prizePoints  Int?                @default(0) // 최종 획득 상금
   
   createdAt    DateTime            @default(now())
@@ -208,6 +210,8 @@ model TablePlayer {
 
 model Tournament {
   id                String  @id // GameSession ID 1:1
+
+  totalBuyinAmount  Int     @default(0)    // 바이인 누적 총 금액
 
   maxTables         Int     
   maxPlayers        Int

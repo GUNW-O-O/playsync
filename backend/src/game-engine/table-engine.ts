@@ -13,69 +13,75 @@ export class TableEngine {
 
   // 플레이어 액션 처리
   public async act(playerIndex: number, action: ActionInput, raiseAmount?: number) {
-    const player = this.state.players.filter(p => p != null)[playerIndex];
-
-    if (action.type === ActionType.DEALER_FOLD) {
-      player.hasFolded = true;
-      this.state.currentTurnSeatIndex = this.getNextTurnSeatIndex();
-      return this.state;
+    const player = this.state.players[playerIndex];
+    if (!player || player.hasFolded || this.state.currentTurnSeatIndex !== playerIndex) {
+      throw new Error("액션 불가 상태");
     }
+    const minRaise = this.smallBlind * 2;
 
-    if (player.hasFolded || player.stack <= 0 || this.state.currentTurnSeatIndex !== playerIndex) {
-      throw new Error("차례가 돌아오지 않았거나 플레이 불가상황입니다.");
-    }
-
-    // 액션 적용
     switch (action.type) {
       case ActionType.FOLD:
+      case ActionType.DEALER_FOLD:
         player.hasFolded = true;
+        break;
+
+      case ActionType.CHECK:
+        if (player.bet < this.state.currentBet) throw new Error("콜이 필요합니다.");
         break;
 
       case ActionType.CALL:
         this.handleCall(player);
         break;
 
-      case ActionType.CHECK:
-        if (player.bet < this.state.currentBet) throw new Error("체크 불가합니다.");
-        break;
-
       case ActionType.RAISE:
-        if (!raiseAmount || raiseAmount <= 0) throw new Error("레이즈는 0이상 / 미니멈레이즈 이상이어야합니다.");
+        // raiseAmount는 '이번 라운드에 내가 낼 총액' 기준
+        if (!raiseAmount || raiseAmount <= this.state.currentBet || raiseAmount <= minRaise) {
+          throw new Error("룰에 맞추어 레이즈해주세요.");
+        }
         this.handleRaise(player, raiseAmount);
+        this.state.lastRaiserIndex = playerIndex;
         break;
 
-      case ActionType.ALL_IN:
-        this.handleAllIn(player);
-        break;
-
-      default:
-        throw new Error(`Unknown action type: ${action.type}`);
     }
 
-    this.state.currentTurnSeatIndex = this.getNextTurnSeatIndex();
+    const nextTurn = this.getNextTurnSeatIndex();
 
-    if (this.allActivePlayersAllIn() && this.state.phase !== GamePhase.HAND_END) {
-      this.state.phase = GamePhase.SHOWDOWN;
-      await this.handleHandEnd();
+    // 라운드 종료 혹은 쇼다운 판별
+    if (nextTurn === -1 || this.checkRoundOver(nextTurn)) {
+      if (this.shouldGoToShowdown()) {
+        this.state.phase = GamePhase.SHOWDOWN;
+        this.calculateSidePots();
+      } else {
+        this.nextPhase();
+      }
+    } else {
+      this.state.currentTurnSeatIndex = nextTurn;
     }
-
-    if (this.countActivePlayers() === 1 && this.state.phase !== GamePhase.HAND_END) {
-      this.state.phase = GamePhase.HAND_END;
-      await this.handleHandEnd();
-    }
-
     return this.state;
   }
+
+  // 라운드가 종료되었는지 확인하는 헬퍼
+  private checkRoundOver(nextIndex: number): boolean {
+    const activePlayers = this.state.players.filter(p => p && !p.hasFolded);
+    // 모든 유저가 currentBet을 맞췄고, 턴이 lastRaiser에게 돌아왔는지 확인
+    const isAllMatched = activePlayers.every(p => p!.bet === this.state.currentBet || p!.isAllIn);
+    return isAllMatched && nextIndex === this.state.lastRaiserIndex;
+  }
+
   public nextPhase() {
     const phases = [GamePhase.PRE_FLOP, GamePhase.FLOP, GamePhase.TURN, GamePhase.RIVER, GamePhase.SHOWDOWN];
     const currentIndex = phases.indexOf(this.state.phase);
 
     if (currentIndex < phases.length - 1) {
       this.state.phase = phases[currentIndex + 1];
-      // 단계가 넘어갈 때마다 플레이어들의 bet을 0으로 초기화하여 다음 라운드 준비
-      this.state.players.filter(
-        (p): p is TablePlayer => p != null && !p.hasFolded).forEach(p => p.bet = 0);
+
+      // 베팅 초기화 (라운드 비교용 bet은 0으로, 총 기여도는 유지)
+      this.state.players.forEach(p => { if (p) p.bet = 0; });
       this.state.currentBet = 0;
+
+      // 첫 액션 유저는 버튼 다음 사람 (SB 위치부터 탐색)
+      this.state.currentTurnSeatIndex = this.findNextActiveSeat((this.state.buttonUser + 1) % this.state.players.length);
+      this.state.lastRaiserIndex = -1;
     }
   }
 
@@ -92,55 +98,90 @@ export class TableEngine {
     this.state.players[seatIndex] = null; // 자리는 비우되 인덱스는 유지
   }
 
-  public resolveWinner(winnerIds: string[]) {
-    const winners = this.state.players.filter(p => winnerIds.includes(p!.id));
-    const winAmount = Math.floor(this.state.pot / winners.length);
+  // --- 사이드 팟 계산 로직 ---
+  public calculateSidePots() {
+    this.state.sidePots = [];
+    const participants = this.state.players
+      .filter((p): p is TablePlayer => p !== null && p.totalContributed > 0)
+      .sort((a, b) => a.totalContributed - b.totalContributed);
 
-    winners.forEach(w => {
-      w!.stack += winAmount;
-    });
+    let lastLevel = 0;
+    for (const p of participants) {
+      const contribution = p.totalContributed;
+      if (contribution > lastLevel) {
+        const amountPerPlayer = contribution - lastLevel;
+        const eligiblePlayers = participants.filter(pl => pl.totalContributed >= contribution);
 
-    this.state.pot = 0;
-    this.handleHandEnd(); // 다음 핸드 준비 및 리바인 체크
-  }
-
-  private handleCall(player: TablePlayer) {
-    const callAmount = this.state.currentBet - player.bet;
-    const actual = Math.min(callAmount, player.stack);
-    player.stack -= actual;
-    player.bet += actual;
-    this.state.pot += actual;
-    if (player.stack === 0) player.isAllIn = true;
-  }
-
-  private handleRaise(player: TablePlayer, raiseAmount: number) {
-    const totalBet = this.state.currentBet + raiseAmount;
-    const needed = totalBet - player.bet;
-    if (player.stack <= needed) this.handleAllIn(player);
-    else {
-      player.stack -= needed;
-      player.bet += needed;
-      this.state.pot += needed;
-      this.state.currentBet = totalBet;
+        this.state.sidePots.push({
+          amount: amountPerPlayer * eligiblePlayers.length,
+          relevantPlayerIds: eligiblePlayers.map(pl => pl.id)
+        });
+        lastLevel = contribution;
+      }
     }
   }
 
-  private handleAllIn(player: TablePlayer) {
-    this.state.pot += player.stack;
-    player.bet += player.stack;
-    player.stack = 0;
-    player.isAllIn = true;
-    if (player.bet > this.state.currentBet) this.state.currentBet = player.bet;
+  public resolveWinner(winnerIds: string[]) {
+    // 사이드팟 리스트를 돌면서 승자가 포함되어 있으면 해당 금액 분배
+    for (const pot of this.state.sidePots) {
+      const winnersForThisPot = winnerIds.filter(id => pot.relevantPlayerIds.includes(id));
+      if (winnersForThisPot.length > 0) {
+        const share = Math.floor(pot.amount / winnersForThisPot.length);
+        winnersForThisPot.forEach(id => {
+          const p = this.state.players.find(pl => pl?.id === id);
+          if (p) p.stack += share;
+        });
+      }
+    }
+    this.state.pot = 0;
+    this.state.sidePots = [];
+    this.handleHandEnd();
   }
 
-  private allActivePlayersAllIn(): boolean {
-    return this.state.players
-      .filter((p): p is TablePlayer => p != null && !p.hasFolded && p.stack > 0)
-      .every(p => p.isAllIn || p.stack === 0);
+  private handleCall(player: TablePlayer) {
+    const needed = this.state.currentBet - player.bet;
+    const amount = Math.min(needed, player.stack);
+    this.executeBet(player, amount);
   }
 
-  private countActivePlayers(): number {
-    return this.state.players.filter((p): p is TablePlayer => p != null && !p.hasFolded && p.stack > 0).length;
+  private handleRaise(player: TablePlayer, betAmount: number) {
+    // 가진 돈보다 더 많이 레이즈하려고 하면 자동으로 가진 돈 전부를 베팅(올인)
+    const needed = betAmount - player.bet;
+    const amount = Math.min(needed, player.stack);
+    this.executeBet(player, amount);
+
+    // 실제 베팅된 결과가 기존 currentBet보다 높으면 갱신
+    if (player.bet > this.state.currentBet) {
+      this.state.currentBet = player.bet;
+    }
+  }
+
+  // 공통 베팅 처리 (bet, totalContributed 동시 업데이트)
+  private executeBet(player: TablePlayer, amount: number) {
+    player.stack -= amount;
+    player.bet += amount;
+    player.totalContributed += amount;
+    this.state.pot += amount;
+
+    if (player.stack === 0) {
+      player.isAllIn = true;
+    }
+  }
+
+
+  private findNextActiveSeat(startIndex: number): number {
+    const total = this.state.players.length;
+    let curr = startIndex;
+    for (let i = 0; i < total; i++) {
+      const p = this.state.players[curr];
+      if (p && !p.hasFolded && !p.isAllIn && p.stack > 0) return curr;
+      curr = (curr + 1) % total;
+    }
+    return -1;
+  }
+
+  private getNextTurnSeatIndex(): number {
+    return this.findNextActiveSeat((this.state.currentTurnSeatIndex + 1) % this.state.players.length);
   }
 
   /**
@@ -172,92 +213,79 @@ export class TableEngine {
    * 딜러 준비 완료 후 PRE_FLOP 진입
    */
   public startPreFlop() {
-
-    let c = 0;
-    const bbAmount = this.smallBlind * 2;
-    if(this.state.buttonUser === 8) {
-      this.state.buttonUser = 0;
-    }
-    for (let i = this.state.buttonUser; i < this.state.players.length; i++) {
-      const player = this.state.players[i];
-      switch (c) {
-        case 0: 
-          this.state.buttonUser = i;
-          break;
-        case 1: 
-          if(player !== null) {
-            this.payBlind(player, this.smallBlind);
-          };
-          break;
-        case 2: 
-          if(player !== null) {
-            this.payBlind(player, bbAmount);
-            c = i;
-          };
-          break;
-        default:
-          break; 
-      }
-    }
-
-
-    // 앤티 존재, 프리플랍 시 강제 징수
-    if (this.state.ante > 0) {
-      this.state.players.forEach(p => {
-        if (p && p.stack < this.state.ante) {
-          this.state.pot += p.stack;
-          p.stack = 0;
-          p.isAllIn = true;
-        }
-        if (p && p.stack > 0) {
-          const postedAnte = Math.min(p.stack, this.state.ante);
-          p.stack -= postedAnte;
-          this.state.pot += postedAnte;
-        }
-      });
-    }
-
-    // 플레이어 상태 초기화 및 OUT 처리
-    this.state.players.filter((p): p is TablePlayer => p != null).forEach(p => {
-      if (p.stack <= 0) {
-        // 리바인 선택 안 한 플레이어 → OUT 처리
-        p.hasFolded = true;
-      }
-      p.bet = 0;
-      p.isAllIn = false;
-    });
-
-
     // Pot 및 턴 초기화
-    this.state.pot = this.state.players.filter((p): p is TablePlayer => p != null).reduce((sum, p) => sum + p.bet, 0);
-    this.state.currentBet = bbAmount;
-    this.state.currentTurnSeatIndex = c; // 첫 턴
+    this.initTable();
+    // 1. BTN, SB, BB 유저를 순차적으로 찾음 (null 제외)
+    const btnIdx = this.findNextActiveSeat((this.state.buttonUser + 1) % this.state.players.length);
+    const sbIdx = this.findNextActiveSeat((btnIdx + 1) % this.state.players.length);
+    const bbIdx = this.findNextActiveSeat((sbIdx + 1) % this.state.players.length);
+
+    this.state.buttonUser = btnIdx;
+
+    // 2. 앤티 징수 (블라인드보다 먼저 징수)
+    if (this.state.ante === true) {
+      this.payAnte(this.smallBlind / 5);
+    }
+
+    // 3. 블라인드 지불
+    this.payBlind(sbIdx, bbIdx, this.smallBlind);
+
+    // 4. 상태 설정
+    this.state.currentBet = this.smallBlind * 2;
+
+    // 첫 순서는 BB 다음 사람
+    this.state.currentTurnSeatIndex = this.findNextActiveSeat((bbIdx + 1) % this.state.players.length);
+
+    // 만약 BB 다음 사람이 아무도 없다면 (예: 2인 헤즈업) BB가 아닌 사람이 액션
+    if (this.state.currentTurnSeatIndex === -1) {
+      this.state.currentTurnSeatIndex = sbIdx;
+    }
+
+    this.state.lastRaiserIndex = bbIdx;
     this.state.phase = GamePhase.PRE_FLOP;
   }
 
-  private payBlind(player: TablePlayer, amount: number) {
-    if (player && player.stack <= amount) {
-      player.bet = player.stack;
-      player.stack = 0;
-      player.isAllIn = true;
-    } else {
-      player.stack -= amount;
-      player.bet = amount;
-    }
+  private payBlind(sbIdx: number, bbIdx: number, amount: number) {
+    this.executeBet(this.state.players[sbIdx]!, amount);
+    this.executeBet(this.state.players[bbIdx]!, amount * 2);
   }
 
-  private getNextTurnSeatIndex(): number {
-    const total = this.state.players.length;
-    if(this.state.currentTurnSeatIndex === 8) {
-      for(let i = 0; i < total; i++) {
-        if(this.state.players[i] !== null) return 0;
+  private payAnte(ante: number) {
+    this.state.players.forEach(p => {
+      if (p && !p.hasFolded) { // 앉아있는 유저만
+        const amount = Math.min(p.stack, ante);
+        p.stack -= amount;
+        p.totalContributed += amount; // 사이드 팟 계산을 위해 누적
+        this.state.pot += amount;
+        if (p.stack === 0) p.isAllIn = true;
       }
-    }
-    let next = this.state.currentTurnSeatIndex;
-    for (let i = next; i < total; i++) {
-      if(this.state.players[i] !== null) return i;
-    }
-    return -1;
+    });
   }
 
+  private initTable() {
+    this.state.players.forEach(p => {
+      if (p && p.stack > 0) {
+        p.bet = 0;
+        p.totalContributed = 0;
+        p.hasFolded = false;
+        p.isAllIn = false;
+      }
+      else if (p && p.stack <= 0) {
+        p.bet = 0;
+        p.totalContributed = 0;
+        p.hasFolded = true;
+        p.isAllIn = false;
+      }
+    })
+    this.state.lastRaiserIndex = -1;
+    this.state.pot = 0;
+    this.state.currentBet = 0;
+    this.state.sidePots = [];
+  }
+
+  private shouldGoToShowdown(): boolean {
+    const activeNotAllIn = this.state.players.filter(p => p && !p.hasFolded && !p.isAllIn);
+    // 액션 가능한 사람이 1명 이하가 되면 무조건 쇼다운(카드 오픈)
+    return activeNotAllIn.length <= 1;
+  }
 }

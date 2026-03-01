@@ -12,8 +12,6 @@ export enum ActionType {
   CHECK,
   CALL,
   FOLD,
-  ALL_IN,
-  BET,
   RAISE,
   DEALER_KICK,
   DEALER_FOLD,
@@ -27,11 +25,13 @@ export type ActionInput = {
 export interface TablePlayer {
   id : string;
   userId: string;
+  seatIndex : number;
   stack : number;
   bet : number;
   hasFolded : boolean;
   isAllIn : boolean;
   button : boolean;
+  totalContributed : number;
 }
 
 export interface TableState {
@@ -39,10 +39,11 @@ export interface TableState {
   players : (TablePlayer | null)[];
   buttonUser : number;
   currentTurnSeatIndex : number;
+  lastRaiserIndex : number;
   pot : number;
   sidePots: SidePot[];
   currentBet : number;
-  ante : number;
+  ante : boolean;
 }
 
 export interface SidePot {
