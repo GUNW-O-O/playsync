@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import Redis from 'ioredis';
 import { TableEngine } from './table-engine';
-import { HandState, ActionInput, GamePhase } from './types';
+import { TableState, ActionInput, GamePhase } from './types';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -18,17 +18,24 @@ export class GameEngineService {
       include: { user: true }
     });
 
-    const initialState: HandState = {
+    const initialState: TableState = {
       phase: GamePhase.WAITING,
       players: tablePlayers.map(tp => ({
         id: tp.userId,
+        userId: tp.userId,
+        seatIndex: tp.seatPosition,
         stack: tp.currentStack,
         bet: 0,
         hasFolded: false,
         isAllIn: false,
+        button: false,
+        totalContributed: 0,
       })),
-      buttonIndex: 0,
-      currentTurnIndex: 0,
+      buttonUser: 0,
+      currentTurnSeatIndex: 0,
+      lastRaiserIndex: -1,
+      sidePots: [],
+      ante: false,
       pot: 0,
       currentBet: 0,
     };
@@ -42,7 +49,7 @@ export class GameEngineService {
     const rawState = await this.redis.get(`table:${tableId}:state`);
     if (!rawState) throw new Error("Game state not found");
 
-    const state: HandState = JSON.parse(rawState);
+    const state: TableState = JSON.parse(rawState);
     const engine = new TableEngine(state); // 로직 주입
 
     await engine.act(playerIndex, action, raiseAmount); // 액션 실행
