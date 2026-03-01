@@ -2,10 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { SessionStatus, SessionType } from '@prisma/client';
 import { CreateSessionDto, UpdateSessionDto } from 'shared/dto/session.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class SessionService {
-  constructor(private prismaService: PrismaService) { };
+  constructor(private prismaService: PrismaService,
+  ) { };
 
   async getGameSession(sessionId: string) {
     return await this.prismaService.gameSession.findUnique({
@@ -49,6 +51,7 @@ export class SessionService {
           dealerOtp: Math.floor(1000 + Math.random() * 9000), // 4자리 OTP [cite: 9]
           startStack: dto.startStack,
           avgStack: dto.startStack,
+          entryFee: dto.entryFee,
 
           // 2. 타입에 따른 하위 모델 생성 (Tournament / SitAndGo) [cite: 11, 19]
           ...(dto.type === 'TOURNAMENT'
@@ -112,6 +115,7 @@ export class SessionService {
     const updateData: any = {
       name: dto.name,
       blindId: dto.blindId,
+      entryFee: dto.entryFee,
     };
     if (session?.type === SessionType.TOURNAMENT && dto.rebuyUntil !== undefined) {
       updateData.tournament = {

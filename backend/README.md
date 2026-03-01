@@ -10,3 +10,10 @@ npx prisma migrate reset
 npx prisma migrate dev --name historyName
 
 npx prisma generate
+
+
+nest g controller user
+nest g service user
+nest g module user
+
+nest g service user/test

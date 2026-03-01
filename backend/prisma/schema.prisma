@@ -76,6 +76,7 @@ model PointTransaction {
 model Store {
   id             String          @id @default(uuid())
   name           String          @unique
+  kioskId        Int             @unique
   ownerId        String
   owner          User            @relation(fields: [ownerId], references: [id])
   physicalTables PhysicalTable[]
@@ -120,6 +121,7 @@ model GameSession {
   blindStructure BlindStructure? @relation(fields: [blindId], references: [id])
   blindId        String?
 
+  entryFee       Int           @default(0)
   startStack     Int           @default(0)
 
   // 실시간 전광판용 데이터

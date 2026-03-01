@@ -1,5 +1,5 @@
 // src/session/dto/create-session.dto.ts
-import { IsArray, IsEnum, IsInt, IsOptional, IsString, Min, ValidateIf } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min, ValidateIf } from 'class-validator';
 import { SessionType } from '@prisma/client';
 
 export class CreateSessionDto {
@@ -29,6 +29,10 @@ export class CreateSessionDto {
 
   @IsInt()
   @Min(0)
+  entryFee: number;
+
+  @IsInt()
+  @Min(0)
   rebuyUntil: number;
 
   // --- Tournament 전용 필드 ---
@@ -53,6 +57,10 @@ export class UpdateSessionDto {
   @IsString()
   @IsOptional()
   blindId?: string;
+
+  @IsInt()
+  @Min(0)
+  entryFee: number;
 
   // 토너먼트 전용
   @IsInt()

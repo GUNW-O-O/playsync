@@ -31,6 +31,7 @@ export class StoreService {
       data: {
         name: dto.storeName,
         ownerId: dto.ownerId,
+        kioskId: Math.floor(1000 + Math.random() * 9000),
       }
     });
   }

@@ -1,8 +1,11 @@
 import { Module, Global, DynamicModule } from '@nestjs/common';
+import { RedisService } from './redis.service';
 import Redis from 'ioredis';
 
 @Global()
-@Module({})
+@Module({
+  providers: [RedisService]
+})
 export class RedisModule {
   static register(): DynamicModule {
     return {

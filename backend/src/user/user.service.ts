@@ -38,4 +38,24 @@ export class UserService {
       data : {nickname, password : hashedPassword, role : Role.STORE_ADMIN},
     });
   }
+
+  async paymentPoint (tx: any,userId: string, sessionId: string, sessionName: string, amount: number) {
+    const user = await this.findByUUID(userId);
+    if(!user) throw new NotFoundException('유저를 찾을 수 없습니다');
+
+    await tx.user.update({
+      where : {id : userId},
+      data : {point : {decrement : amount}}
+    });
+    await tx.pointTransaction.create({
+      data : {
+        userId,
+        amount : -amount,
+        type: 'BUY_IN',
+        sessionId,
+        description: `${sessionName} 바이인`
+      }
+    })
+  }
+
 }
