@@ -25,4 +25,9 @@ export class KioskController {
     return this.kiosk.joinSessionWithSeat(dto);
   }
 
+  @Post('rebuy')
+  async rebuy(@Body() dto: KioskPayMentDto) {
+    return this.kiosk.joinSessionWithSeat(dto);
+  }
+
 }

@@ -1,3 +1,5 @@
+import { BlindLevelDto } from "shared/dto/blind-structure.dto";
+
 export enum GamePhase {
   WAITING,
   PRE_FLOP,
@@ -13,37 +15,40 @@ export enum ActionType {
   CALL,
   FOLD,
   RAISE,
+  TIME_OUT,
   DEALER_KICK,
   DEALER_FOLD,
-  ELIMINATED
 }
 
-export type ActionInput = {
-  type : ActionType;
-}
+// export type ActionInput = {
+//   type : ActionType;
+// }
 
 export interface TablePlayer {
-  id : string;
+  id: string;
   userId: string;
-  seatIndex : number;
-  stack : number;
-  bet : number;
-  hasFolded : boolean;
-  isAllIn : boolean;
-  button : boolean;
-  totalContributed : number;
+  nickName: string;
+  seatIndex: number;
+  stack: number;
+  bet: number;
+  hasFolded: boolean;
+  isAllIn: boolean;
+  button: boolean;
+  totalContributed: number;
 }
 
 export interface TableState {
-  phase : GamePhase;
-  players : (TablePlayer | null)[];
-  buttonUser : number;
-  currentTurnSeatIndex : number;
-  lastRaiserIndex : number;
-  pot : number;
+  phase: GamePhase;
+  players: (TablePlayer | null)[];
+  buttonUser: number;
+  currentTurnSeatIndex: number;
+  lastRaiserIndex: number;
+  pot: number;
   sidePots: SidePot[];
-  currentBet : number;
-  ante : boolean;
+  currentBet: number;
+  blindStructure: BlindLevelDto[];
+  ante: boolean;
+  actionDeadline?: number;
 }
 
 export interface SidePot {

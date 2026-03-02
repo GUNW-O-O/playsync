@@ -1,5 +1,5 @@
 // table-engine.ts
-import { TableState, TablePlayer, ActionInput, ActionType, GamePhase } from "./types";
+import { TableState, TablePlayer, ActionType, GamePhase } from "./types";
 
 type RebuyCallback = (playerId: string) => Promise<number> | number;
 // 반환값 0 → 리바인 거부, >0 → 충전할 스택
@@ -12,17 +12,22 @@ export class TableEngine {
   ) { }
 
   // 플레이어 액션 처리
-  public async act(playerIndex: number, action: ActionInput, raiseAmount?: number) {
+  public async act(playerIndex: number, action: ActionType, raiseAmount?: number) {
     const player = this.state.players[playerIndex];
     if (!player || player.hasFolded || this.state.currentTurnSeatIndex !== playerIndex) {
       throw new Error("액션 불가 상태");
     }
     const minRaise = this.smallBlind * 2;
 
-    switch (action.type) {
+    switch (action) {
       case ActionType.FOLD:
       case ActionType.DEALER_FOLD:
+      case ActionType.DEALER_KICK:
         player.hasFolded = true;
+        break;
+
+      case ActionType.TIME_OUT:
+        (player.bet < this.state.currentBet) ? player.hasFolded = true : false;
         break;
 
       case ActionType.CHECK:
@@ -201,7 +206,6 @@ export class TableEngine {
             p.hasFolded = false;
             p.isAllIn = false;
           }
-          // rebuyAmount === 0 → 리바인 거부 → 다음 핸드에서 OUT 처리
         }
       }
     }
@@ -213,7 +217,7 @@ export class TableEngine {
    * 딜러 준비 완료 후 PRE_FLOP 진입
    */
   public startPreFlop() {
-    // Pot 및 턴 초기화
+    // 테이블 초기화
     this.initTable();
     // 1. BTN, SB, BB 유저를 순차적으로 찾음 (null 제외)
     const btnIdx = this.findNextActiveSeat((this.state.buttonUser + 1) % this.state.players.length);
@@ -281,6 +285,7 @@ export class TableEngine {
     this.state.pot = 0;
     this.state.currentBet = 0;
     this.state.sidePots = [];
+    this.state.actionDeadline = undefined;
   }
 
   private shouldGoToShowdown(): boolean {

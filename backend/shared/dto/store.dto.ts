@@ -1,4 +1,4 @@
-import { IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsInt, IsString, MinLength } from 'class-validator';
 
 export class CreateStoreDto {
   @IsString()
@@ -12,8 +12,8 @@ export class CreateStoreDto {
 export class UpdateStoreDto {
   @IsString()
   @MinLength(2)
-  storeName : string;
-  
+  storeName: string;
+
   @IsString()
-  ownerId : string;
+  ownerId: string;
 }

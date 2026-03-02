@@ -118,8 +118,8 @@ model GameSession {
   type           SessionType
   status         SessionStatus @default(PENDING)
 
-  blindStructure BlindStructure? @relation(fields: [blindId], references: [id])
-  blindId        String?
+  blindStructure BlindStructure @relation(fields: [blindId], references: [id])
+  blindId        String
 
   entryFee       Int           @default(0)
   startStack     Int           @default(0)
@@ -201,6 +201,7 @@ model TablePlayer {
   
   userId          String
   user            User         @relation(fields: [userId], references: [id])
+  nickName        String       @default("")
 
   seatPosition    Int          // 0~8 (9인테이블)
   currentStack    Int          // 실시간 칩 스택

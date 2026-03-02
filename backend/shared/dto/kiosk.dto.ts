@@ -1,4 +1,4 @@
-import { IsString } from "class-validator";
+import { IsString, Max, Min } from "class-validator";
 
 export class KioskPayMentDto {
 
@@ -12,6 +12,19 @@ export class KioskPayMentDto {
   tableId: string;
 
   @IsString()
+  @Min(0)
+  @Max(8)
   seatIndex: number;
 
+}
+
+export class RebuyDto {
+  @IsString()
+  userId: string;
+
+  @IsString()
+  sessionId: string;
+
+  @IsString()
+  tableId: string;
 }

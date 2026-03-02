@@ -13,10 +13,6 @@ export class BlindLevelDto {
 
   @IsInt()
   @Min(0)
-  bb: number;
-
-  @IsInt()
-  @Min(0)
   ante: number;
 
   @IsInt()
