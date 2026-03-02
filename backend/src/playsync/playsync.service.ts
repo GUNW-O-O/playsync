@@ -89,23 +89,6 @@ export class PlaysyncService {
     await Promise.all(tablePromises);
   }
 
-  async startPreFlop(sessionId: string, tableId: string) {
-    const blind = await this.redis.getSessionBlinds(sessionId);
-    const state = await this.redis.getSnapShot(tableId);
-    const ante = state.ante;
-
-    const isLevelUp =
-      blind.nextLevelAt && blind.nextLevelAt < new Date();
-
-    const currentBlind = isLevelUp
-      ? getCurrentBlindLevel(state.blindStructure, blind.startedAt)
-      : blind;
-
-    const smallBlind =state.blindStructure[currentBlind.currentIndex].sb;
-    await this.redis.setSessionBlinds(sessionId, currentBlind);
-    const engine = new TableEngine(state);
-    engine.startPreFlop(smallBlind, ante);
-  }
 
   async handleAction(dto: PlayerActionDto) {
     // Redis에서 상태 로드 및 엔진 초기화
@@ -136,56 +119,7 @@ export class PlaysyncService {
     return state;
   }
 
-  async handleDealerAction(sessionId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
-    const state = await this.redis.getSnapShot(tableId);
-    const engine = new TableEngine(state);
-    const targetIdx = state.players.findIndex(p => p?.userId === targetUserId);
-
-    if (targetIdx === -1) throw new Error("대상 플레이어를 찾을 수 없습니다.");
-
-    if (type === 'FOLD') {
-      await engine.act(targetIdx, ActionType.DEALER_FOLD);
-    } else if (type === 'KICK') {
-      await engine.act(targetIdx, ActionType.DEALER_KICK);
-      await this.redis.setUserContext(sessionId, targetUserId, tableId, 'KICKED');
-      await this.prisma.tablePlayer.update({
-        where: { sessionTableId_userId: { sessionTableId: tableId, userId: targetUserId } },
-        data: { isEliminated: true }
-      });
-      await this.prisma.gameSession.update({
-        where: { id: sessionId },
-        data: { activePlayers: { decrement: 1 } }
-      });
-    }
-
-    await this.redis.saveSnapShot(tableId, state); // Redis 저장 및 다음 턴/타이머 세팅
-  }
-
-  async resolveWinners(tableId: string, winnerUserIds: string[]) {
-    const state = await this.redis.getSnapShot(tableId);
-
-    if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
-    const engine = new TableEngine(state);
-    engine.resolveWinner(winnerUserIds);
-
-    for (const player of state.players) {
-      if (player && player.stack <= 0) {
-        // TODO : 리바이 결과값으로 탈락처리
-
-        await this.eliminatePlayer(player.userId);
-      }
-      // 상금등수가 아닐때
-      // 상금진입
-
-    }
-
-    // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
-
-    await this.redis.saveSnapShot(tableId, state);
-    await this.syncTableInventoryToDb(state);
-  }
-
-  private async syncTableInventoryToDb(state: TableState) {
+  public async syncTableInventoryToDb(state: TableState) {
     const updates = state.players
       .filter(p => p !== null)
       .map(p => this.prisma.tablePlayer.update({
@@ -196,7 +130,7 @@ export class PlaysyncService {
   }
 
   // 탈락
-  private async eliminatePlayer(userId: string) {
+  public async eliminatePlayer(userId: string) {
     await this.prisma.$transaction(async (tx) => {
       await tx.tablePlayer.update({
         where: { id: userId },
@@ -210,7 +144,7 @@ export class PlaysyncService {
   }
 
   // 리바인
-  private async processRebuy(tableId: string, userId: string, sessionId: string): Promise<boolean> {
+  public async processRebuy(tableId: string, userId: string, sessionId: string): Promise<boolean> {
     return await this.prisma.$transaction(async (tx) => {
       // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });
@@ -254,4 +188,5 @@ export class PlaysyncService {
       return true;
     });
   }
+
 }

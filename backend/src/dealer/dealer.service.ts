@@ -1,10 +1,19 @@
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { DealerDto } from 'shared/dto/dealer.dto';
+import { getCurrentBlindLevel } from 'shared/util/util';
+import { TableEngine } from 'src/game-engine/table-engine';
+import { ActionType } from 'src/game-engine/types';
+import { PlaysyncService } from 'src/playsync/playsync.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { RedisService } from 'src/redis/redis.service';
 
 @Injectable()
 export class DealerService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private redis: RedisService,
+    private playsync: PlaysyncService,
+  ) { }
 
   // src/store/session/dealer.service.ts
 
@@ -61,5 +70,74 @@ export class DealerService {
       return dealer;
     });
   }
+
+  async startPreFlop(sessionId: string, tableId: string) {
+    const blind = await this.redis.getSessionBlinds(sessionId);
+    const state = await this.redis.getSnapShot(tableId);
+    const ante = state.ante;
+
+    const isLevelUp =
+      blind.nextLevelAt && blind.nextLevelAt < new Date();
+
+    const currentBlind = isLevelUp
+      ? getCurrentBlindLevel(state.blindStructure, blind.startedAt)
+      : blind;
+
+    const smallBlind = state.blindStructure[currentBlind.currentIndex].sb;
+    await this.redis.setSessionBlinds(sessionId, currentBlind);
+    const engine = new TableEngine(state);
+    engine.startPreFlop(smallBlind, ante);
+  }
+
+  async handleDealerAction(sessionId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
+    const state = await this.redis.getSnapShot(tableId);
+    const engine = new TableEngine(state);
+    const targetIdx = state.players.findIndex(p => p?.userId === targetUserId);
+
+    if (targetIdx === -1) throw new Error("대상 플레이어를 찾을 수 없습니다.");
+
+    if (type === 'FOLD') {
+      await engine.act(targetIdx, ActionType.DEALER_FOLD);
+    } else if (type === 'KICK') {
+      await engine.act(targetIdx, ActionType.DEALER_KICK);
+      await this.redis.setUserContext(sessionId, targetUserId, tableId, 'KICKED');
+      await this.prisma.tablePlayer.update({
+        where: { sessionTableId_userId: { sessionTableId: tableId, userId: targetUserId } },
+        data: { isEliminated: true }
+      });
+      await this.prisma.gameSession.update({
+        where: { id: sessionId },
+        data: { activePlayers: { decrement: 1 } }
+      });
+    }
+
+    await this.redis.saveSnapShot(tableId, state); // Redis 저장 및 다음 턴/타이머 세팅
+  }
+
+  async resolveWinners(tableId: string, winnerUserIds: string[]) {
+    const state = await this.redis.getSnapShot(tableId);
+
+    if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
+    const engine = new TableEngine(state);
+    engine.resolveWinner(winnerUserIds);
+
+    for (const player of state.players) {
+      if (player && player.stack <= 0) {
+        // TODO : 리바이 결과값으로 탈락처리
+
+        await this.playsync.eliminatePlayer(player.userId);
+      }
+      // 상금등수가 아닐때
+      // 상금진입
+
+    }
+
+    // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
+
+    await this.redis.saveSnapShot(tableId, state);
+    await this.playsync.syncTableInventoryToDb(state);
+  }
+
+
 
 }
