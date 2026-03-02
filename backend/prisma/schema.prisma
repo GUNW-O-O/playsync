@@ -217,7 +217,7 @@ model Tournament {
   id                String  @id // GameSession ID 1:1
 
   totalBuyinAmount  Int     @default(0)    // 바이인 누적 총 금액
-  rebuyUntil       Int     @default(0)
+  rebuyUntil        Int     @default(0)
 
   session GameSession @relation(fields: [id], references: [id], onDelete: Cascade)
 }

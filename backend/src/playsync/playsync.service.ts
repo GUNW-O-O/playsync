@@ -1,8 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
+import { TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
-import { BlindLevelDto } from 'shared/dto/blind-structure.dto';
-import { RebuyDto } from 'shared/dto/kiosk.dto';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
 import { getCurrentBlindLevel, parseBlindStructure } from 'shared/util/util';
 import { TableEngine } from 'src/game-engine/table-engine';
@@ -44,8 +43,8 @@ export class PlaysyncService {
     });
 
     const blind = parseBlindStructure(session.blindStructure.structure);
-    const { currentIndex, nextLevelAt } = getCurrentBlindLevel(blind, startedAt);
-    await this.redis.setSessionBlinds(sessionId, currentIndex, startedAt, nextLevelAt!);
+    const currentBlind = getCurrentBlindLevel(blind, startedAt);
+    await this.redis.setSessionBlinds(sessionId, currentBlind);
 
     // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
     const tablePromises = session.sessionTables.filter(st => st.tablePlayers.length > 0).map(async (st) => {
@@ -91,14 +90,21 @@ export class PlaysyncService {
   }
 
   async startPreFlop(sessionId: string, tableId: string) {
-    const state = await this.redis.getSnapShot(tableId);
-
     const blind = await this.redis.getSessionBlinds(sessionId);
+    const state = await this.redis.getSnapShot(tableId);
+    const ante = state.ante;
 
+    const isLevelUp =
+      blind.nextLevelAt && blind.nextLevelAt < new Date();
+
+    const currentBlind = isLevelUp
+      ? getCurrentBlindLevel(state.blindStructure, blind.startedAt)
+      : blind;
+
+    const smallBlind =state.blindStructure[currentBlind.currentIndex].sb;
+    await this.redis.setSessionBlinds(sessionId, currentBlind);
     const engine = new TableEngine(state);
-    engine.startPreFlop();
-
-
+    engine.startPreFlop(smallBlind, ante);
   }
 
   async handleAction(dto: PlayerActionDto) {
@@ -155,7 +161,7 @@ export class PlaysyncService {
     await this.redis.saveSnapShot(tableId, state); // Redis 저장 및 다음 턴/타이머 세팅
   }
 
-  async resolveWinners(tx: any, tableId: string, winnerUserIds: string[]) {
+  async resolveWinners(tableId: string, winnerUserIds: string[]) {
     const state = await this.redis.getSnapShot(tableId);
 
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
@@ -166,24 +172,16 @@ export class PlaysyncService {
       if (player && player.stack <= 0) {
         // TODO : 리바이 결과값으로 탈락처리
 
+        await this.eliminatePlayer(player.userId);
       }
       // 상금등수가 아닐때
       // 상금진입
-      await this.prisma.$transaction(async (tx) => {
-        await tx.tablePlayer.update({
-          where: { id: player.id },
-          data: { isEliminated: true }
-        });
-        await tx.gameSession.update({
-          where: { id: player.userId },
-          data: { activePlayers: { decrement: 1 } }
-        });
-      });
+
     }
 
-    await this.redis.saveSnapShot(tableId, state);
-
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
+
+    await this.redis.saveSnapShot(tableId, state);
     await this.syncTableInventoryToDb(state);
   }
 
@@ -197,18 +195,63 @@ export class PlaysyncService {
     await this.prisma.$transaction(updates);
   }
 
-  // 리바인
-  private async rebuy(tx: any, dto: RebuyDto) {
-    const session = await this.prisma.gameSession.findUnique({
-      where: { id: dto.sessionId },
-      include: {
-        tournament: true,
-        sitAndGo: true,
-        blindStructure: true,
-        participations: { where: { userId: dto.userId } },
-      },
+  // 탈락
+  private async eliminatePlayer(userId: string) {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tablePlayer.update({
+        where: { id: userId },
+        data: { isEliminated: true }
+      });
+      await tx.gameSession.update({
+        where: { id: userId },
+        data: { activePlayers: { decrement: 1 } }
+      });
     });
-    if (!session) throw new Error('잘못된 세션 ID 입니다.');
   }
 
+  // 리바인
+  private async processRebuy(tableId: string, userId: string, sessionId: string): Promise<boolean> {
+    return await this.prisma.$transaction(async (tx) => {
+      // 유저 포인트 및 세션 리바인 가능 여부 조회
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      const session = await tx.gameSession.findUnique({
+        where: { id: sessionId },
+        include: { tournament: true }
+      });
+
+      if (!session || !user || !session.tournament) throw new Error('세션 혹은 유저 없음.');
+
+      const blindLv = (await this.redis.getSessionBlinds(sessionId)).currentIndex;
+      const rebuyAmount = session.entryFee || 0;
+      const rebuyStack = session.startStack;
+
+      if (user.points < rebuyAmount && session.tournament.rebuyUntil < blindLv) return false;
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { points: { decrement: rebuyAmount } }
+      });
+
+      await tx.pointTransaction.create({
+        data: {
+          userId,
+          amount: rebuyAmount * -1,
+          type: TransactionType.REBUY,
+          sessionId
+        }
+      });
+
+      await tx.sessionParticipation.update({
+        where: { userId_sessionId: { sessionId, userId } },
+        data: { buyInCount: { increment: 1 } },
+      });
+
+      await tx.tablePlayer.update({
+        where: { sessionTableId_userId: { sessionTableId: tableId, userId } }, // tableId 관리 필요
+        data: { currentStack: { increment: rebuyStack } }
+      });
+
+      return true;
+    });
+  }
 }

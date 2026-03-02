@@ -1,6 +1,7 @@
 import { Inject, Injectable } from "@nestjs/common";
 import Redis from "ioredis";
 import { KioskPayMentDto } from "shared/dto/kiosk.dto";
+import { BlindTimingResult } from "shared/util/util";
 import { TableState } from "src/game-engine/types";
 
 @Injectable()
@@ -25,16 +26,11 @@ export class RedisService {
   }
   
   // 세션 블라인드 (블라인드 레벨, 시작시간, 다음시간)
-  async setSessionBlinds(sessionId: string, blindLv: number, startedAt: Date, lvUpAt: Date){
-    const data = {
-      blindLv,
-      startedAt,
-      lvUpAt
-    }
-    await this.redis.set(`${sessionId}`,JSON.stringify(data));
+  async setSessionBlinds(sessionId: string, dto: BlindTimingResult){
+    await this.redis.set(`${sessionId}`,JSON.stringify(dto));
   }
   // 세션 블라인드
-  async getSessionBlinds(sessionId: string) {
+  async getSessionBlinds(sessionId: string): Promise<BlindTimingResult> {
     const data = await this.redis.get(`${sessionId}`);
     if (!data) throw new Error('블라인드 정보 없음');
     return JSON.parse(data);

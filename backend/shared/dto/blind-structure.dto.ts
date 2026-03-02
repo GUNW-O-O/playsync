@@ -1,5 +1,5 @@
 // /src/session/dto/blind-structure.dto.ts
-import { IsString, IsArray, IsNotEmpty, ValidateNested, IsInt, Min } from 'class-validator';
+import { IsString, IsArray, IsNotEmpty, ValidateNested, IsInt, Min, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BlindLevelDto {
@@ -8,12 +8,11 @@ export class BlindLevelDto {
   lv: number;
 
   @IsInt()
-  @Min(0)
+  @Min(100)
   sb: number;
 
-  @IsInt()
-  @Min(0)
-  ante: number;
+  @IsBoolean()
+  ante: boolean;
 
   @IsInt()
   @Min(10)

@@ -7,17 +7,15 @@ type RebuyCallback = (playerId: string) => Promise<number> | number;
 export class TableEngine {
   constructor(
     public state: TableState,
-    public smallBlind: number = 100,
     public rebuyCallback?: RebuyCallback
   ) { }
 
   // 플레이어 액션 처리
-  public async act(playerIndex: number, action: ActionType, raiseAmount?: number) {
+  public async act(playerIndex: number, action: ActionType, raiseAmount?: number, smallBlind?: number) {
     const player = this.state.players[playerIndex];
     if (!player || player.hasFolded || this.state.currentTurnSeatIndex !== playerIndex) {
       throw new Error("액션 불가 상태");
     }
-    const minRaise = this.smallBlind * 2;
 
     switch (action) {
       case ActionType.FOLD:
@@ -40,7 +38,7 @@ export class TableEngine {
 
       case ActionType.RAISE:
         // raiseAmount는 '이번 라운드에 내가 낼 총액' 기준
-        if (!raiseAmount || raiseAmount <= this.state.currentBet || raiseAmount <= minRaise) {
+        if (!raiseAmount || raiseAmount <= this.state.currentBet) {
           throw new Error("룰에 맞추어 레이즈해주세요.");
         }
         this.handleRaise(player, raiseAmount);
@@ -216,7 +214,7 @@ export class TableEngine {
   /**
    * 딜러 준비 완료 후 PRE_FLOP 진입
    */
-  public startPreFlop() {
+  public startPreFlop(smallBlind: number, ante: boolean) {
     // 테이블 초기화
     this.initTable();
     // 1. BTN, SB, BB 유저를 순차적으로 찾음 (null 제외)
@@ -227,15 +225,15 @@ export class TableEngine {
     this.state.buttonUser = btnIdx;
 
     // 2. 앤티 징수 (블라인드보다 먼저 징수)
-    if (this.state.ante === true) {
-      this.payAnte(this.smallBlind / 5);
+    if (ante === true) {
+      this.payAnte(smallBlind / 5);
     }
 
     // 3. 블라인드 지불
-    this.payBlind(sbIdx, bbIdx, this.smallBlind);
+    this.payBlind(sbIdx, bbIdx, smallBlind);
 
     // 4. 상태 설정
-    this.state.currentBet = this.smallBlind * 2;
+    this.state.currentBet = smallBlind * 2;
 
     // 첫 순서는 BB 다음 사람
     this.state.currentTurnSeatIndex = this.findNextActiveSeat((bbIdx + 1) % this.state.players.length);
