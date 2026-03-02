@@ -5,6 +5,9 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { SessionModule } from './store/session/session.module';
 import { UserModule } from './user/user.module';
+import { PlaysyncService } from './playsync/playsync.service';
+import { PlaysyncController } from './playsync/playsync.controller';
+import { PlaysyncModule } from './playsync/playsync.module';
 
 @Module({
   imports:[
@@ -14,6 +17,9 @@ import { UserModule } from './user/user.module';
     SessionModule,
     DealerModule,
     KioskModule,
+    PlaysyncModule,
   ],
+  providers: [PlaysyncService],
+  controllers: [PlaysyncController],
 })
 export class AppModule {}

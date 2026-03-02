@@ -12,6 +12,6 @@ export class KioskPayMentDto {
   tableId: string;
 
   @IsString()
-  seat: number;
+  seatIndex: number;
 
 }

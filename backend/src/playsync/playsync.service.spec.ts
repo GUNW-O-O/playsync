@@ -1,15 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { GameEngineService } from './game-engine.service';
+import { PlaysyncService } from './playsync.service';
 
-describe('GameEngineService', () => {
-  let service: GameEngineService;
+describe('PlaysyncService', () => {
+  let service: PlaysyncService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [GameEngineService],
+      providers: [PlaysyncService],
     }).compile();
 
-    service = module.get<GameEngineService>(GameEngineService);
+    service = module.get<PlaysyncService>(PlaysyncService);
   });
 
   it('should be defined', () => {

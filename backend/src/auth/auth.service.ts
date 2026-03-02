@@ -13,7 +13,7 @@ export class AuthService {
     return this.userService.createUser(dto.nickname, dto.password);
   }
 
-  async signin(dto : LoginUserDto) {
+  async login(dto : LoginUserDto) {
     const user = await this.userService.findByNickname(dto.nickname);
     if(!user) throw new UnauthorizedException('비밀번호나 닉네임이 틀렸습니다.');
 

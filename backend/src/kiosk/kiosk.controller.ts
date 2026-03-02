@@ -1,20 +1,28 @@
-import { Body, ConflictException, Controller, Post } from '@nestjs/common';
+import { Body, ConflictException, Controller, Get, Param, Post } from '@nestjs/common';
 import { KioskPayMentDto } from 'shared/dto/kiosk.dto';
 import { RedisService } from 'src/redis/redis.service';
+import { KioskService } from './kiosk.service';
 
 @Controller('kiosk')
 export class KioskController {
-  constructor(private readonly redisService: RedisService) {}
+  constructor(private readonly kiosk: KioskService) { }
 
+  // 1. 매장 내 참여 가능 세션 목록 (비로그인)
+  @Get('store/:storeId/sessions')
+  async getSessions(@Param('storeId') storeId: string) {
+    return this.kiosk.getAvailableSessions(storeId);
+  }
 
-  @Post('reserve-seat')
+  // 2. 특정 세션의 테이블 및 좌석 현황 (비로그인)
+  @Get('session/:sessionId/seats')
+  async getSeatStatus(@Param('sessionId') sessionId: string) {
+    return this.kiosk.getAvailableSeats(sessionId);
+  }
+
+  // 3. 결제 및 좌석 확정 (로그인 필수)
+  @Post('entry')
   async reserve(@Body() dto: KioskPayMentDto) {
-    const isLocked = await this.redisService.acquireSeatLock(dto);
-
-    if (!isLocked) {
-      throw new ConflictException('이미 다른 유저가 선택 중인 좌석입니다.');
-    }
-    return { message: '좌석이 5분간 선점되었습니다.' };
+    return this.kiosk.joinSessionWithSeat(dto);
   }
 
 }

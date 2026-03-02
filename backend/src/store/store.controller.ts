@@ -47,8 +47,8 @@ export class StoreController {
   @Put(':storeId/table/:tableId')
   async updateTable(@Param('storeId') storeId: string,
         @Param('tableId') tableId: string,
-        @Body('seatCount') seatCount: number) {
-    return this.storeService.updateTable(storeId, tableId, seatCount);
+        @Body('tableNumber') tableNumber: number) {
+    return this.storeService.updateTable(storeId, tableId, tableNumber);
   }
 
   @Delete(':storeId/table/:tableId')

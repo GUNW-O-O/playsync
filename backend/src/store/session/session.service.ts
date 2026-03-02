@@ -21,6 +21,14 @@ export class SessionService {
     });
   }
 
+  async getDetailSeatStatus(sessionId: string) {
+    const tables = await this.prismaService.sessionTable.findMany({
+      where: { sessionId },
+      include: { tablePlayers: true },
+    });
+    return tables;
+  }
+
   // 해당 매장의 전체 토너먼트 정보
   async getStoreAllSessions(storeId: string) {
     return await this.prismaService.gameSession.findMany({

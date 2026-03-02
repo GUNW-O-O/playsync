@@ -14,10 +14,10 @@ export class AuthController {
     return { nickname : user.nickname };
   }
 
-  @Post('signin')
+  @Post('login')
   @UsePipes(new ValidationPipe({ whitelist : true }))
-  async signin(@Body() dto : LoginUserDto) {
-    return this.authService.signin(dto);
+  async login(@Body() dto : LoginUserDto) {
+    return this.authService.login(dto);
   }
 
   @Post('join')
