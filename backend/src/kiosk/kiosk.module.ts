@@ -9,7 +9,6 @@ import { KioskService } from './kiosk.service';
   imports: [
     UserModule,
     SessionModule,
-    RedisModule,
   ],
   controllers: [KioskController],
   providers: [KioskService],

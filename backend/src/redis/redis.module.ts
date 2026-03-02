@@ -1,27 +1,21 @@
-import { Module, Global, DynamicModule } from '@nestjs/common';
-import { RedisService } from './redis.service';
+import { Module, Global } from '@nestjs/common';
 import Redis from 'ioredis';
+import { RedisService } from './redis.service';
 
 @Global()
 @Module({
-  providers: [RedisService]
+  providers: [
+    {
+      provide: 'REDIS_CLIENT',
+      useFactory: () => {
+        return new Redis({
+          host: 'localhost',
+          port: 6379,
+        });
+      },
+    },
+    RedisService,
+  ],
+  exports: ['REDIS_CLIENT', RedisService], // 두 가지 모두 export 해야 외부에서 사용 가능
 })
-export class RedisModule {
-  static register(): DynamicModule {
-    return {
-      module: RedisModule,
-      providers: [
-        {
-          provide: 'REDIS_CLIENT',
-          useFactory: () => {
-            return new Redis({
-              host: 'localhost',
-              port: 6379,
-            });
-          },
-        },
-      ],
-      exports: ['REDIS_CLIENT'],
-    };
-  }
-}
+export class RedisModule { }

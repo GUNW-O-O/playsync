@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { SessionStatus, SessionType } from '@prisma/client';
 import { CreateSessionDto, UpdateSessionDto } from 'shared/dto/session.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class SessionService {
