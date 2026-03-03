@@ -98,8 +98,6 @@ export class PlaysyncService {
     const userState = await this.redis.getUserContext(dto.sessionId, dto.userId);
 
     const engine = new TableEngine(state);
-    const deadline = Date.now() + 30000;
-    state.actionDeadline = deadline;
 
     // 엔진 액션 실행
     const playerIdx = state.players.findIndex(p => p?.userId === dto.userId);
@@ -108,11 +106,26 @@ export class PlaysyncService {
     }
     await engine.act(playerIdx, dto.action, dto.amount);
 
-    await this.timeoutQueue.add(
-      'player-timeout',
-      { tableId: dto.tableId, userId: dto.userId },
-      { delay: 30000, jobId: dto.tableId }
-    );
+    // 다음 턴 유저가 결정되었다면 그 유저를 위한 타임아웃 생성
+    if (state.phase!== GamePhase.SHOWDOWN && state.currentTurnSeatIndex !== -1) {
+      const nextPlayer = state.players[state.currentTurnSeatIndex];
+      if (nextPlayer) {
+        await this.timeoutQueue.add(
+          'player-timeout',
+          { 
+            sessionId : dto.sessionId,
+            tableId: dto.tableId,
+            userId: nextPlayer.userId
+          },
+          {
+            delay: 30000,
+            jobId: dto.tableId, // 테이블별 고유 ID로 덮어쓰기/관리
+            removeOnComplete: true
+          }
+        );
+        state.actionDeadline = Date.now() + 30000;
+      }
+    }
 
     // Redis 저장
     await this.redis.saveSnapShot(dto.tableId, state);

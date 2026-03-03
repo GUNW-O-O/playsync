@@ -1,23 +1,37 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { ActionType } from 'src/game-engine/types';
 import { PlaysyncService } from './playsync.service';
+import { ActionType } from 'src/game-engine/types';
+import { RedisService } from 'src/redis/redis.service';
 
 @Processor('player-timeout')
 export class TimeoutProcessor extends WorkerHost {
-  constructor(private readonly playsyncService: PlaysyncService) {
+  constructor(private readonly playsyncService: PlaysyncService,
+              private readonly redis: RedisService, 
+  ) {
     super();
   }
 
-  async process(job: Job<{ tableId: string; userId: string }>) {
-    const { tableId, userId } = job.data;
+  async process(job: Job<{ sessionId:string, tableId: string; userId: string }>) {
+    const { sessionId, tableId, userId } = job.data;
 
-    // 강제 폴드 액션 실행
-    // 딜러가 폴드시키는 ActionType.DEALER_FOLD 등을 활용 가능 
-    await this.playsyncService.handleAction(tableId, userId, {
-      type: ActionType.FOLD
+    // 타임아웃 시점에 해당 유저가 여전히 그 테이블의 그 턴인지 다시 확인
+    const state = await this.redis.getSnapShot(tableId);
+    if (!state) return;
+
+    const currentPlayer = state.players[state.currentTurnSeatIndex];
+
+    // 만약 이미 액션을 해서 턴이 넘어갔거나 유저가 바뀌었다면 무시
+    if (currentPlayer?.userId !== userId) return;
+
+    // 자동 TIME_OUT 액션 실행
+    await this.playsyncService.handleAction({
+      sessionId,
+      tableId,
+      userId,
+      action: ActionType.TIME_OUT, // table-engine.ts에서 체크/폴드 처리 [cite: 17]
+      amount: 0
     });
 
-    // 결과는 Service 내부에서 다시 다음 사람 타이머를 등록하며 순환함
   }
 }

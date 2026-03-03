@@ -4,9 +4,6 @@ import { PlaysyncService } from './playsync.service';
 
 @Module({
   imports: [
-    BullModule.forRoot({
-      connection : {host : 'localhost', port: 6379}
-    }),
     BullModule.registerQueue({
       name : 'player-timeout'
     }),

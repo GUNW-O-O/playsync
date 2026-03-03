@@ -17,7 +17,7 @@ export class CreateSessionDto {
 
   @IsString()
   @IsOptional()
-  blindId?: string;
+  blindId: string;
 
   @IsInt()
   @Min(0)
