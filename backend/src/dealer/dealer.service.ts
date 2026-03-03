@@ -1,8 +1,10 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Queue } from 'bullmq';
 import { DealerDto } from 'shared/dto/dealer.dto';
 import { getCurrentBlindLevel } from 'shared/util/util';
 import { TableEngine } from 'src/game-engine/table-engine';
-import { ActionType } from 'src/game-engine/types';
+import { ActionType, GamePhase } from 'src/game-engine/types';
 import { PlaysyncService } from 'src/playsync/playsync.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
@@ -10,12 +12,11 @@ import { RedisService } from 'src/redis/redis.service';
 @Injectable()
 export class DealerService {
   constructor(
+    @InjectQueue('player-timeout') private timeoutQueue: Queue,
     private prisma: PrismaService,
     private redis: RedisService,
     private playsync: PlaysyncService,
   ) { }
-
-  // src/store/session/dealer.service.ts
 
   async loginDealer(dto: DealerDto) {
     return await this.prisma.$transaction(async (tx) => {
@@ -87,6 +88,8 @@ export class DealerService {
     await this.redis.setSessionBlinds(sessionId, currentBlind);
     const engine = new TableEngine(state);
     engine.startPreFlop(smallBlind, ante);
+    await this.redis.saveSnapShot(tableId, state);
+    return engine.state;
   }
 
   async handleDealerAction(sessionId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
@@ -95,6 +98,8 @@ export class DealerService {
     const targetIdx = state.players.findIndex(p => p?.userId === targetUserId);
 
     if (targetIdx === -1) throw new Error("대상 플레이어를 찾을 수 없습니다.");
+
+    await this.timeoutQueue.remove(tableId);
 
     if (type === 'FOLD') {
       await engine.act(targetIdx, ActionType.DEALER_FOLD);
@@ -111,31 +116,44 @@ export class DealerService {
       });
     }
 
+    if (state.phase !== GamePhase.SHOWDOWN && state.currentTurnSeatIndex !== -1) {
+      const nextPlayer = state.players[state.currentTurnSeatIndex];
+      if (nextPlayer) {
+        await this.timeoutQueue.add('player-timeout',
+          { sessionId, tableId, userId: nextPlayer.userId },
+          { delay: 30000, jobId: tableId }
+        );
+        state.actionDeadline = Date.now() + 30000;
+      }
+    }
+
     await this.redis.saveSnapShot(tableId, state); // Redis 저장 및 다음 턴/타이머 세팅
+    return state;
   }
 
-  async resolveWinners(tableId: string, winnerUserIds: string[]) {
+  async resolveWinners(sessionId: string, tableId: string, winnerUserIds: string[]) {
     const state = await this.redis.getSnapShot(tableId);
 
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
-    const engine = new TableEngine(state);
+    const engine = new TableEngine(state, async (playerId: string) => {
+      return await this.playsync.processRebuy(tableId, playerId, sessionId);
+    });
     engine.resolveWinner(winnerUserIds);
 
     for (const player of state.players) {
       if (player && player.stack <= 0) {
-        // TODO : 리바이 결과값으로 탈락처리
-
         await this.playsync.eliminatePlayer(player.userId);
       }
-      // 상금등수가 아닐때
+      // TODO : 상금등수가 아닐때
       // 상금진입
-
     }
 
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
 
     await this.redis.saveSnapShot(tableId, state);
     await this.playsync.syncTableInventoryToDb(state);
+
+    return state;
   }
 
 

@@ -1,8 +1,7 @@
 // table-engine.ts
 import { TableState, TablePlayer, ActionType, GamePhase } from "./types";
 
-type RebuyCallback = (playerId: string) => Promise<number> | number;
-// 반환값 0 → 리바인 거부, >0 → 충전할 스택
+type RebuyCallback = (playerId: string) => Promise<number>; // 금액 반환 (0이면 리바이 불가)
 
 export class TableEngine {
   constructor(
@@ -273,10 +272,7 @@ export class TableEngine {
         p.isAllIn = false;
       }
       else if (p && p.stack <= 0) {
-        p.bet = 0;
-        p.totalContributed = 0;
-        p.hasFolded = true;
-        p.isAllIn = false;
+        p = null;
       }
     })
     this.state.lastRaiserIndex = -1;

@@ -157,7 +157,7 @@ export class PlaysyncService {
   }
 
   // 리바인
-  public async processRebuy(tableId: string, userId: string, sessionId: string): Promise<boolean> {
+  public async processRebuy(tableId: string, userId: string, sessionId: string): Promise<number> {
     return await this.prisma.$transaction(async (tx) => {
       // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });
@@ -172,7 +172,7 @@ export class PlaysyncService {
       const rebuyAmount = session.entryFee || 0;
       const rebuyStack = session.startStack;
 
-      if (user.points < rebuyAmount && session.tournament.rebuyUntil < blindLv) return false;
+      if (user.points < rebuyAmount && session.tournament.rebuyUntil < blindLv) return -1;
 
       await tx.user.update({
         where: { id: userId },
@@ -198,7 +198,7 @@ export class PlaysyncService {
         data: { currentStack: { increment: rebuyStack } }
       });
 
-      return true;
+      return rebuyAmount;
     });
   }
 
