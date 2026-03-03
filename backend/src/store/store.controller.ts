@@ -4,7 +4,6 @@ import { CreateStoreDto, UpdateStoreDto } from 'shared/dto/store.dto';
 import { Roles } from 'src/auth/decorator/roles.decorator';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { StoreService } from './store.service';
-import { CreatePhysicalTableDto } from 'shared/dto/physical-table.dto';
 
 @Controller('store')
 @UseGuards(RolesGuard)
@@ -35,26 +34,6 @@ export class StoreController {
   @Delete(':ownerId/:id')
   async removeStore(@Param('id') id: string, @Param('ownerId') ownerId: string) {
     return this.storeService.removeStore(id, ownerId);
-  }
-
-  // 물리테이블 CRUD
-  @Post(':storeId/table')
-  async createPhysicalTable(@Param('storeId') storeId: string,
-        @Body() dto: CreatePhysicalTableDto) {
-    return this.storeService.createPhysicalTable(storeId, dto);
-  }
-
-  @Put(':storeId/table/:tableId')
-  async updateTable(@Param('storeId') storeId: string,
-        @Param('tableId') tableId: string,
-        @Body('tableNumber') tableNumber: number) {
-    return this.storeService.updateTable(storeId, tableId, tableNumber);
-  }
-
-  @Delete(':storeId/table/:tableId')
-  async deleteTable(@Param('storeId') storeId: string,
-        @Param('tableId') tableId: string) {
-    return this.storeService.deleteTable(storeId, tableId);
   }
 
 }

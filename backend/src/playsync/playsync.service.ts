@@ -17,37 +17,39 @@ export class PlaysyncService {
     private readonly prisma: PrismaService,
   ) { }
 
-  async initializeGame(sessionId: string) {
+  async initializeGame(id: string) {
     // 1. DB에서 세션과 모든 테이블/플레이어 정보를 한 번에 가져옴
-    const session = await this.prisma.gameSession.findUnique({
-      where: { id: sessionId },
-      include: {
-        sessionTables: {
-          include: {
-            tablePlayers: { where: { isEliminated: false } }
+    const game = await this.prisma.tournament.findUnique({
+      where: {id},
+      include : {
+        tables : {
+          include : {
+            tablePlayers : true,
           }
         },
-        blindStructure: true,
+        blindStructure : true,
       }
+
     });
 
-    if (!session) throw new Error("세션 없음");
-    if (session.totalPlayers < 3) {
+    if (!game) throw new Error("세션 없음");
+    if (game.totalPlayers < 3) {
       throw new Error('시작하기에 충분한 인원이 아닙니다.')
     }
     const startedAt = new Date();
+    const tableCount = game.totalPlayers / 9 + 1;
 
-    await this.prisma.gameSession.update({
-      where: { id: sessionId },
+    await this.prisma.tournament.update({
+      where: { id },
       data: { startedAt: startedAt }
     });
 
-    const blind = parseBlindStructure(session.blindStructure.structure);
+    const blind = parseBlindStructure(game.blindStructure.structure);
     const currentBlind = getCurrentBlindLevel(blind, startedAt);
-    await this.redis.setSessionBlinds(sessionId, currentBlind);
+    await this.redis.setSessionBlinds(id, currentBlind);
 
     // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
-    const tablePromises = session.sessionTables.filter(st => st.tablePlayers.length > 0).map(async (st) => {
+    const tablePromises = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
       const initialState: TableState = {
         phase: GamePhase.WAITING,
         players: Array(9).fill(null),
@@ -62,11 +64,11 @@ export class PlaysyncService {
       };
 
       // 플레이어 배치
-      st.tablePlayers.forEach(tp => {
+      t.tablePlayers.forEach(tp => {
         initialState.players[tp.seatPosition] = {
           id: tp.id,
-          userId: tp.userId,
-          nickName: tp.nickName,
+          tableId : t.id,
+          nickName: tp.nickName!,
           seatIndex: tp.seatPosition,
           stack: tp.currentStack,
           bet: 0,
@@ -77,13 +79,9 @@ export class PlaysyncService {
         };
       });
 
-      // 개별 테이블 단위로 Redis 저장 (성능 핵심)
-      await this.redis.saveSnapShot(st.id, initialState);
+      // 개별 테이블 단위로 Redis 저장
+      await this.redis.saveSnapShot(t.id, initialState);
 
-      // 유저 위치 정보 매핑 (빠른 조회를 위함)
-      for (const p of initialState.players.filter(p => p !== null)) {
-        await this.redis.setUserContext(sessionId, p.userId, st.id, 'ACTIVE');
-      }
     });
 
     await Promise.all(tablePromises);
@@ -107,13 +105,13 @@ export class PlaysyncService {
     await engine.act(playerIdx, dto.action, dto.amount);
 
     // 다음 턴 유저가 결정되었다면 그 유저를 위한 타임아웃 생성
-    if (state.phase!== GamePhase.SHOWDOWN && state.currentTurnSeatIndex !== -1) {
+    if (state.phase !== GamePhase.SHOWDOWN && state.currentTurnSeatIndex !== -1) {
       const nextPlayer = state.players[state.currentTurnSeatIndex];
       if (nextPlayer) {
         await this.timeoutQueue.add(
           'player-timeout',
-          { 
-            sessionId : dto.sessionId,
+          {
+            sessionId: dto.sessionId,
             tableId: dto.tableId,
             userId: nextPlayer.userId
           },
@@ -157,7 +155,7 @@ export class PlaysyncService {
   }
 
   // 리바인
-  public async processRebuy(tableId: string, userId: string, sessionId: string): Promise<number> {
+  public async processRebuy(tableId: string, userId: string): Promise<number> {
     return await this.prisma.$transaction(async (tx) => {
       // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });

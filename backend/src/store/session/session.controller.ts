@@ -1,10 +1,10 @@
 // src/store/session/session.controller.ts
 import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { SessionService } from './session.service';
-import { CreateSessionDto, UpdateSessionDto } from 'shared/dto/session.dto';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/decorator/roles.decorator';
+import { CreateTournamentDto, UpdateTournamentDto } from 'shared/dto/tournament.dto';
 
 @UseGuards(RolesGuard)
 @Roles(Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
@@ -13,7 +13,7 @@ export class SessionController {
   constructor(private readonly sessionService: SessionService) {}
 
   @Post()
-  async create(@Body() dto: CreateSessionDto) {
+  async create(@Body() dto: CreateTournamentDto) {
     return this.sessionService.createSession(dto);
   }
 
@@ -23,7 +23,7 @@ export class SessionController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateSessionDto) {
+  async update(@Param('id') id: string, @Body() dto: UpdateTournamentDto) {
     return this.sessionService.updateSession(id, dto);
   }
 

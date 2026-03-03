@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { SessionStatus, SessionType } from '@prisma/client';
-import { CreateSessionDto, UpdateSessionDto } from 'shared/dto/session.dto';
+import { TournamentStatus } from '@prisma/client';
+import { CreateTournamentDto, UpdateTournamentDto } from 'shared/dto/tournament.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
@@ -8,22 +8,21 @@ export class SessionService {
   constructor(private prismaService: PrismaService,
   ) { };
 
-  async getGameSession(sessionId: string) {
-    return await this.prismaService.gameSession.findUnique({
-      where: {
-        id: sessionId,
-      },
+  async getGameSession(id: string) {
+    return await this.prismaService.tournament.findUnique({
+      where: { id },
       include: {
-        sessionTables: true,
-        tournament: true,
-        sitAndGo: true,
+        tables: true,
+        tornamentParticipations: true,
+        tablePlayers: true,
+        blindStructure: true,
       }
     });
   }
 
-  async getDetailSeatStatus(sessionId: string) {
-    const tables = await this.prismaService.sessionTable.findMany({
-      where: { sessionId },
+  async getDetailSeatStatus(id: string) {
+    const tables = await this.prismaService.table.findMany({
+      where: { id },
       include: { tablePlayers: true },
     });
     return tables;
@@ -31,14 +30,9 @@ export class SessionService {
 
   // 해당 매장의 전체 토너먼트 정보
   async getStoreAllSessions(storeId: string) {
-    return await this.prismaService.gameSession.findMany({
+    return await this.prismaService.tournament.findMany({
       where: {
         storeId: storeId,
-      },
-      include: {
-        sessionTables: true,
-        tournament: true,
-        sitAndGo: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -46,10 +40,10 @@ export class SessionService {
     });
   }
 
-  async createSession(dto: CreateSessionDto) {
+  async createSession(dto: CreateTournamentDto) {
     return await this.prismaService.$transaction(async (tx) => {
       // 1. 기본 게임 세션 생성 (블라인드 구조 연결 및 OTP 생성 포함)
-      const session = await tx.gameSession.create({
+      const session = await tx.tournament.create({
         data: {
           name: dto.name,
           type: dto.type,
@@ -59,87 +53,72 @@ export class SessionService {
           startStack: dto.startStack,
           avgStack: dto.startStack,
           entryFee: dto.entryFee,
-
-          // 2. 타입에 따른 하위 모델 생성 (Tournament / SitAndGo) [cite: 11, 19]
-          ...(dto.type === 'TOURNAMENT'
-            ? { tournament: { create: { totalBuyinAmount: 0, rebuyUntil: dto.rebuyUntil } } }
-            : { sitAndGo: { create: { minPlayers: dto.minPlayers } } }
-          ),
-
-          // 3. 선택된 물리 테이블들을 세션 테이블로 즉시 할당 [cite: 16]
-          sessionTables: {
-            create: dto.tableIds.map((id) => ({
-              physicalTableId: id,
-            })),
-          },
+          rebuyUntil: dto.rebuyUntil,
+          isRegistrationOpen: dto.isRegistrationOpen,
         },
-        include: {
-          sessionTables: true,
-          tournament: true,
-          sitAndGo: true,
-        }
       });
+
+      const dealerSession = await tx.dealerSession.create({
+        data : { tournamentId : session.id },
+      });
+
+      await tx.table.create({
+        data : {
+          tableOrder : 1,
+          tournamentId : session.id,
+          dealerId : dealerSession.id,
+        }
+      }) 
 
       return session;
     });
   }
 
   // 세션 시작
-  async startSession(sessionId: string) {
-    return await this.prismaService.gameSession.update({
+  async startSession(id: string) {
+    return await this.prismaService.tournament.update({
       where: {
-        id: sessionId,
+        id: id,
       },
       data: {
-        status: SessionStatus.ONGOING,
+        status: TournamentStatus.ONGOING,
         startedAt: new Date(),
       },
     });
   }
 
   // 세션 완료
-  async completeSession(sessionId: string) {
-    return await this.prismaService.gameSession.update({
+  async completeSession(id: string) {
+    return await this.prismaService.tournament.update({
       where: {
-        id: sessionId,
+        id: id,
       },
       data: {
-        status: SessionStatus.FINISHED,
+        status: TournamentStatus.FINISHED,
         finishedAt: new Date(),
       },
     });
   }
 
   // 세션 수정
-  async updateSession(sessionId: string, dto: UpdateSessionDto) {
-    const session = await this.getGameSession(sessionId);
-    if (session?.status === SessionStatus.ONGOING) {
-      throw new Error('진행 중인 세션은 수정할 수 없습니다.');
-    }
-    if (session?.status === SessionStatus.FINISHED) {
+  async updateSession(id: string, dto: UpdateTournamentDto) {
+    const session = await this.getGameSession(id);
+    if (session?.status === TournamentStatus.FINISHED) {
       throw new Error('종료된 세션은 수정할 수 없습니다.');
     }
     const updateData: any = {
       name: dto.name,
       blindId: dto.blindId,
+      startStack: dto.startStack,
+      rebuyUntil: dto.rebuyUntil,
+      itmCount: dto.itmCount,
       entryFee: dto.entryFee,
     };
-    if (session?.type === SessionType.TOURNAMENT && dto.rebuyUntil !== undefined) {
-      updateData.tournament = {
-        update: {
-          rebuyUntil: dto.rebuyUntil,
-        },
-      };
-    }
-    return await this.prismaService.gameSession.update({
+    return await this.prismaService.tournament.update({
       where: {
-        id: sessionId,
+        id: id,
       },
       data: updateData,
-      include: {
-        tournament: true,
-        sitAndGo: true,
-      }
     });
   }
 

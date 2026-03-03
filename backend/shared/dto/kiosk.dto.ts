@@ -6,9 +6,6 @@ export class KioskPayMentDto {
   userId: string;
 
   @IsString()
-  sessionId: string;
-
-  @IsString()
   tableId: string;
 
   @IsString()
@@ -23,8 +20,6 @@ export class RebuyDto {
   userId: string;
 
   @IsString()
-  sessionId: string;
-
-  @IsString()
   tableId: string;
+
 }

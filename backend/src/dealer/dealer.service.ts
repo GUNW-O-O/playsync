@@ -120,7 +120,7 @@ export class DealerService {
       const nextPlayer = state.players[state.currentTurnSeatIndex];
       if (nextPlayer) {
         await this.timeoutQueue.add('player-timeout',
-          { sessionId, tableId, userId: nextPlayer.userId },
+          { sessionId, tableId, userId: nextPlayer.id },
           { delay: 30000, jobId: tableId }
         );
         state.actionDeadline = Date.now() + 30000;
@@ -131,7 +131,7 @@ export class DealerService {
     return state;
   }
 
-  async resolveWinners(sessionId: string, tableId: string, winnerUserIds: string[]) {
+  async resolveWinners(tableId: string, winnerUserIds: string[]) {
     const state = await this.redis.getSnapShot(tableId);
 
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");

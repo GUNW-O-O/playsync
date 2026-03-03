@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
-import { SessionStatus } from '@prisma/client';
+import { TournamentStatus } from '@prisma/client';
 import { KioskPayMentDto } from 'shared/dto/kiosk.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
@@ -16,8 +16,8 @@ export class KioskService {
 
   async getAvailableSessions(storeId: string) {
     const sessions = await this.session.getStoreAllSessions(storeId);
-    return sessions.filter(session => session.status === SessionStatus.ONGOING
-      || session.status === SessionStatus.PENDING
+    return sessions.filter(session => session.status === TournamentStatus.ONGOING
+      || session.status === TournamentStatus.PENDING
     );
   }
 
@@ -32,50 +32,58 @@ export class KioskService {
       throw new ConflictException('이미 다른 유저가 선택 중인 좌석입니다.');
     }
     try {
+      const user = await this.user.findByUUID(dto.userId);
+      if (!user) {
+        throw new ConflictException('잘못된 유저 ID 입니다.')
+      }
       return await this.prismaService.$transaction(async (tx) => {
         // DB 최종 중복 체크
         const exsitingPlayer = await tx.tablePlayer.findUnique({
           where: {
-            sessionTableId_seatPosition: {
-              sessionTableId: dto.tableId,
+            tableId_seatPosition: {
+              tableId: dto.tableId,
               seatPosition: dto.seatIndex
             }
           }
         });
         if (exsitingPlayer) throw new Error('이미 플레이어가 존재하는 좌석입니다');
 
-        const session = await tx.gameSession.findUnique({
-          where: { id: dto.sessionId },
-          include: { tournament: true, sitAndGo: true }
+        const session = await tx.tournament.findUnique({
+          where: { id: dto.tableId },
         });
-        if (!session || session.status === SessionStatus.FINISHED) throw new ConflictException('잘못된 세션 ID 입니다.');
+        if (!session) throw new ConflictException('잘못된 세션 ID 입니다.');
+        if (session.status === TournamentStatus.FINISHED || !session.isRegistrationOpen) {
+          throw new ConflictException('이미 종료된 세션입니다.');
+        }
 
-        await this.user.paymentPoint(tx, dto.userId, dto.sessionId, session.name, session.entryFee);
+        await this.user.paymentPoint(tx, dto.userId, dto.tableId, session.name, session.entryFee);
 
-        await tx.sessionParticipation.create({
+        await tx.tournamentParticipation.create({
           data: {
             userId: dto.userId,
-            sessionId: dto.sessionId,
-            buyInCount: 1,
+            tournamentId: session.id,
           }
         });
 
         const player = await tx.tablePlayer.create({
           data: {
-            sessionTableId: dto.tableId,
+            tournamentId: session.id,
+            nickName: user.nickname,
+            tableId: dto.tableId,
             userId: dto.userId,
             seatPosition: dto.seatIndex,
             currentStack: session.startStack,
           }
         })
 
-        await tx.gameSession.update({
-          where: { id: dto.sessionId },
+        await tx.tournament.update({
+          where: { id: dto.tableId },
           data: {
             totalPlayers: { increment: 1 },
             activePlayers: { increment: 1 }
           }
         });
+        await this.redisService.setUserContext(dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
         return player;
       });
     } finally {

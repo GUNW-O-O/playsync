@@ -26,7 +26,7 @@ export enum ActionType {
 
 export interface TablePlayer {
   id: string;
-  userId: string;
+  tableId: string;
   nickName: string;
   seatIndex: number;
   stack: number;

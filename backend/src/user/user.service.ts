@@ -39,7 +39,7 @@ export class UserService {
     });
   }
 
-  async paymentPoint (tx: any,userId: string, sessionId: string, sessionName: string, amount: number) {
+  async paymentPoint (tx: any,userId: string, tableId: string, sessionName: string, amount: number) {
     const user = await this.findByUUID(userId);
     if(!user) throw new NotFoundException('유저를 찾을 수 없습니다');
 
@@ -52,7 +52,7 @@ export class UserService {
         userId,
         amount : -amount,
         type: 'BUY_IN',
-        sessionId,
+        tableId,
         description: `${sessionName} 바이인`
       }
     })
