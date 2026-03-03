@@ -83,7 +83,7 @@ export class KioskService {
             activePlayers: { increment: 1 }
           }
         });
-        await this.redisService.setUserContext(dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
+        await this.redisService.setUserContext(session.id ,dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
         return player;
       });
     } finally {

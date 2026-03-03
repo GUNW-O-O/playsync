@@ -21,25 +21,14 @@ export class DealerService {
   async loginDealer(dto: DealerDto) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. 세션 및 OTP 검증 (기존 로직)
-      const session = await tx.gameSession.findUnique({ where: { id: dto.sessionId } });
+      const session = await tx.tournament.findUnique({ where: { id: dto.tournamentId } });
       if (!session || session.dealerOtp !== dto.otp) {
         throw new UnauthorizedException('인증 정보가 올바르지 않습니다.');
       }
 
       // 2. 딜러 세션 생성/업데이트
-      const dealer = await tx.dealerSession.upsert({
-        where: {
-          sessionId_physicalTableId: {
-            sessionId: dto.sessionId,
-            physicalTableId: dto.physicalTableId,
-          },
-        },
-        update: { lastActiveAt: new Date() },
-        create: {
-          sessionId: dto.sessionId,
-          physicalTableId: dto.physicalTableId,
-        },
-      });
+      // const dealer = await tx.dealerSession.upsert({
+      // });
 
       // 3. [핵심] 세션이 ONGOING 상태라면 해당 테이블 플레이어들을 PLAYING으로 전환
       if (session.status === 'ONGOING') {
@@ -105,12 +94,13 @@ export class DealerService {
       await engine.act(targetIdx, ActionType.DEALER_FOLD);
     } else if (type === 'KICK') {
       await engine.act(targetIdx, ActionType.DEALER_KICK);
-      await this.redis.setUserContext(sessionId, targetUserId, tableId, 'KICKED');
-      await this.prisma.tablePlayer.update({
-        where: { sessionTableId_userId: { sessionTableId: tableId, userId: targetUserId } },
-        data: { isEliminated: true }
+      const user = await this.redis.getUserContext(targetUserId);
+      await this.redis.setUserContext(user.tournamentId, targetUserId, tableId, user.seatIndex, 'KICKED');
+      await this.prisma.tournamentParticipation.update({
+        where: { tournamentId_userId: { tournamentId : user.tournamentId, userId: targetUserId } },
+        data: { status: 'ELIMINATED' }
       });
-      await this.prisma.gameSession.update({
+      await this.prisma.tournament.update({
         where: { id: sessionId },
         data: { activePlayers: { decrement: 1 } }
       });
@@ -136,16 +126,14 @@ export class DealerService {
 
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
     const engine = new TableEngine(state, async (playerId: string) => {
-      return await this.playsync.processRebuy(tableId, playerId, sessionId);
+      const user = await this.redis.getUserContext(playerId);
+      return await this.playsync.processRebuy(user.tournamentId, playerId);
     });
     engine.resolveWinner(winnerUserIds);
-
-    for (const player of state.players) {
+    for (const player of engine.state.players) {
       if (player && player.stack <= 0) {
-        await this.playsync.eliminatePlayer(player.userId);
+        await this.playsync.eliminatePlayer(player.id);
       }
-      // TODO : 상금등수가 아닐때
-      // 상금진입
     }
 
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장

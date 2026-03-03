@@ -49,12 +49,22 @@ export class RedisService {
   }
 
   // 유저의 위치,정보 저장
-  async setUserContext(userId: string, tableId: string, seatIndex: number, status: string) {
-    await this.redis.set(`user:${userId}`, `${tableId}:${seatIndex}:${status}`);
+  async setUserContext(tournamentId:string, userId: string, tableId: string, seatIndex: number, status: string) {
+    await this.redis.set(`user:${userId}`, `${tournamentId}:${tableId}:${seatIndex}:${status}`);
   }
 
   // 유저 위치 정보 가져오기
-  async getUserContext(userId: string): Promise<string|null> {
-    return await this.redis.get(`user:${userId}`);
+  async getUserContext(userId: string): Promise<UserInfo> {
+    const raw = await this.redis.get(`user:${userId}`);
+    if (!raw) throw new Error(`User ${userId} not found`);
+    return JSON.parse(raw);
   }
+}
+
+// 
+export interface UserInfo{
+  tournamentId: string;
+  tableId: string;
+  seatIndex: number;
+  status: string;
 }

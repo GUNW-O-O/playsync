@@ -20,14 +20,14 @@ export class PlaysyncService {
   async initializeGame(id: string) {
     // 1. DB에서 세션과 모든 테이블/플레이어 정보를 한 번에 가져옴
     const game = await this.prisma.tournament.findUnique({
-      where: {id},
-      include : {
-        tables : {
-          include : {
-            tablePlayers : true,
+      where: { id },
+      include: {
+        tables: {
+          include: {
+            tablePlayers: true,
           }
         },
-        blindStructure : true,
+        blindStructure: true,
       }
 
     });
@@ -37,8 +37,6 @@ export class PlaysyncService {
       throw new Error('시작하기에 충분한 인원이 아닙니다.')
     }
     const startedAt = new Date();
-    const tableCount = game.totalPlayers / 9 + 1;
-
     await this.prisma.tournament.update({
       where: { id },
       data: { startedAt: startedAt }
@@ -67,7 +65,7 @@ export class PlaysyncService {
       t.tablePlayers.forEach(tp => {
         initialState.players[tp.seatPosition] = {
           id: tp.id,
-          tableId : t.id,
+          tableId: t.id,
           nickName: tp.nickName!,
           seatIndex: tp.seatPosition,
           stack: tp.currentStack,
@@ -93,13 +91,13 @@ export class PlaysyncService {
     const state = await this.redis.getSnapShot(dto.tableId);
     if (!state) throw new Error(`Table ${dto.tableId} not found`);
 
-    const userState = await this.redis.getUserContext(dto.sessionId, dto.userId);
+    const userState = await this.redis.getUserContext(dto.tableId);
 
     const engine = new TableEngine(state);
 
     // 엔진 액션 실행
-    const playerIdx = state.players.findIndex(p => p?.userId === dto.userId);
-    if (userState?.endsWith('KICKED')) {
+    const playerIdx = state.players.findIndex(p => p?.id === dto.userId);
+    if (userState?.status.endsWith('KICKED')) {
       await engine.act(playerIdx, ActionType.FOLD);
     }
     await engine.act(playerIdx, dto.action, dto.amount);
@@ -111,9 +109,8 @@ export class PlaysyncService {
         await this.timeoutQueue.add(
           'player-timeout',
           {
-            sessionId: dto.sessionId,
             tableId: dto.tableId,
-            userId: nextPlayer.userId
+            userId: nextPlayer.id
           },
           {
             delay: 30000,
@@ -142,36 +139,47 @@ export class PlaysyncService {
 
   // 탈락
   public async eliminatePlayer(userId: string) {
+    const user = await this.redis.getUserContext(userId);
+
     await this.prisma.$transaction(async (tx) => {
-      await tx.tablePlayer.update({
-        where: { id: userId },
-        data: { isEliminated: true }
+      const session = await tx.tournament.findUnique({
+        where: { id: user.tournamentId },
       });
-      await tx.gameSession.update({
+      if (!session) throw new Error('세션 없음');
+      if (session!.activePlayers <= session.itmCount) {
+        await tx.tournamentParticipation.update({
+          where: { tournamentId_userId:
+            { tournamentId: user.tournamentId, userId }
+          },
+          data: { finalPlace: session.activePlayers, status : 'AWARDED' }
+        })
+      }
+      await tx.tablePlayer.delete({
         where: { id: userId },
+      });
+      await tx.tournament.update({
+        where: { id: user.tournamentId },
         data: { activePlayers: { decrement: 1 } }
       });
     });
   }
 
   // 리바인
-  public async processRebuy(tableId: string, userId: string): Promise<number> {
+  public async processRebuy(tournamentId: string, userId: string): Promise<number> {
     return await this.prisma.$transaction(async (tx) => {
       // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });
-      const session = await tx.gameSession.findUnique({
-        where: { id: sessionId },
-        include: { tournament: true }
+      const session = await tx.tournament.findUnique({
+        where: { id: tournamentId },
       });
+      const info = await this.redis.getUserContext(userId);
+      if (!session || !user) throw new Error('세션 혹은 유저 없음.');
 
-      if (!session || !user || !session.tournament) throw new Error('세션 혹은 유저 없음.');
-
-      const blindLv = (await this.redis.getSessionBlinds(sessionId)).currentIndex;
+      const blindLv = (await this.redis.getSessionBlinds(session.id)).currentIndex;
       const rebuyAmount = session.entryFee || 0;
       const rebuyStack = session.startStack;
 
-      if (user.points < rebuyAmount && session.tournament.rebuyUntil < blindLv) return -1;
-
+      if (user.points < rebuyAmount && session.rebuyUntil < blindLv) return -1;
       await tx.user.update({
         where: { id: userId },
         data: { points: { decrement: rebuyAmount } }
@@ -182,17 +190,18 @@ export class PlaysyncService {
           userId,
           amount: rebuyAmount * -1,
           type: TransactionType.REBUY,
-          sessionId
+          tournamentId,
+          description: `${session.name} 리바인 -${rebuyAmount}`
         }
       });
 
-      await tx.sessionParticipation.update({
-        where: { userId_sessionId: { sessionId, userId } },
+      await tx.tournamentParticipation.update({
+        where: { tournamentId_userId: { tournamentId, userId } },
         data: { buyInCount: { increment: 1 } },
       });
 
       await tx.tablePlayer.update({
-        where: { sessionTableId_userId: { sessionTableId: tableId, userId } }, // tableId 관리 필요
+        where: { tableId_userId: { tableId: info.tableId, userId } }, // tableId 관리 필요
         data: { currentStack: { increment: rebuyStack } }
       });
 
