@@ -10,10 +10,11 @@ export class DealerController {
   async loginDealer(@Body() dto: DealerDto) {
     const dealerSession = await this.dealerService.loginDealer(dto);
 
+    if (!dealerSession) throw new Error('세션 없음')
+
     return {
-      accessToken: dealerSession.authToken,
-      sessionId: dealerSession.sessionId,
-      physicalTableId: dealerSession.physicalTableId,
+      accessToken: dealerSession.id,
+      tournamentId: dealerSession.tournamentId,
     };
   }
 }

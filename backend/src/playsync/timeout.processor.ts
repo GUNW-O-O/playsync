@@ -22,11 +22,10 @@ export class TimeoutProcessor extends WorkerHost {
     const currentPlayer = state.players[state.currentTurnSeatIndex];
 
     // 만약 이미 액션을 해서 턴이 넘어갔거나 유저가 바뀌었다면 무시
-    if (currentPlayer?.userId !== userId) return;
+    if (currentPlayer?.id !== userId) return;
 
     // 자동 TIME_OUT 액션 실행
     await this.playsyncService.handleAction({
-      sessionId,
       tableId,
       userId,
       action: ActionType.TIME_OUT, // table-engine.ts에서 체크/폴드 처리 [cite: 17]

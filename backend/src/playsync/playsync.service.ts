@@ -155,7 +155,7 @@ export class PlaysyncService {
         })
       }
       await tx.tablePlayer.delete({
-        where: { id: userId },
+        where: { tableId_userId : { tableId: user.tableId, userId } },
       });
       await tx.tournament.update({
         where: { id: user.tournamentId },

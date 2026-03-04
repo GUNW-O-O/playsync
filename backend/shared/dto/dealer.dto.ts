@@ -5,6 +5,9 @@ export class DealerDto {
   @IsString()
   tournamentId: string;
 
+  @IsString()
+  tableId: string;
+
   @IsInt()
   otp: number;
 

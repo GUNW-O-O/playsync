@@ -126,7 +126,7 @@ model Tournament {
   store                   Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   tables                  Table[]
   tablePlayers            TablePlayer[]
-  dealerSessions          DealerSession[]
+  dealerSession           DealerSession?
   tornamentParticipations TournamentParticipation[]
 
   createdAt  DateTime  @default(now())
@@ -144,6 +144,8 @@ model Table {
   tournament    Tournament    @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
 
   tablePlayers TablePlayer[]
+
+  @@unique([tournamentId, id])
 }
 
 model TablePlayer {
@@ -190,6 +192,7 @@ model DealerSession {
   // 토너먼트id 로 otp 인증후 맞으면 반환 로컬스토리지에 저장.
   id String @id @default(uuid())
 
-  tournamentId String
+  tournamentId String     @unique
   tournament   Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  tables       Table[]
 }

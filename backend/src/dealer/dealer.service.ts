@@ -21,48 +21,42 @@ export class DealerService {
   async loginDealer(dto: DealerDto) {
     return await this.prisma.$transaction(async (tx) => {
       // 1. 세션 및 OTP 검증 (기존 로직)
-      const session = await tx.tournament.findUnique({ where: { id: dto.tournamentId } });
-      if (!session || session.dealerOtp !== dto.otp) {
+      const tournament = await tx.tournament.findUnique({
+         where: { id: dto.tournamentId } ,
+         include : {
+          dealerSession : true,
+         }
+        });
+      if (!tournament || tournament.dealerOtp !== dto.otp) {
         throw new UnauthorizedException('인증 정보가 올바르지 않습니다.');
       }
 
-      // 2. 딜러 세션 생성/업데이트
-      // const dealer = await tx.dealerSession.upsert({
-      // });
 
-      // 3. [핵심] 세션이 ONGOING 상태라면 해당 테이블 플레이어들을 PLAYING으로 전환
-      if (session.status === 'ONGOING') {
-        // 이 테이블(SessionTable)의 ID를 먼저 찾음
-        const sessionTable = await tx.sessionTable.findFirst({
-          where: { sessionId: dto.sessionId, physicalTableId: dto.physicalTableId }
+      if (tournament.status === 'ONGOING') {
+        const table = await tx.table.findUnique({
+          where: { tournamentId_id: { tournamentId: dto.tournamentId, id: dto.tableId } },
+          include: { tablePlayers: true }
         });
 
-        if (sessionTable) {
-          // 해당 테이블에 속한 모든 참여자(Participation) 상태 변경
-          // TablePlayer에 연결된 User ID들을 가져와서 Participation 테이블 업데이트
-          const tablePlayers = await tx.tablePlayer.findMany({
-            where: { sessionTableId: sessionTable.id }
-          });
-
-          const userIds = tablePlayers.map(p => p.userId);
-
-          await tx.sessionParticipation.updateMany({
+        if (table) {
+          // 참가자 상태 변경
+          const userIds = table.tablePlayers.map(p => p.userId);
+          await tx.tournamentParticipation.updateMany({
             where: {
-              sessionId: dto.sessionId,
               userId: { in: userIds },
+              tournamentId: dto.tournamentId,
               status: 'WAITING' // 대기 중인 사람만
             },
             data: { status: 'PLAYING' }
           });
         }
       }
-
-      return dealer;
+      return tournament.dealerSession;
     });
   }
 
-  async startPreFlop(sessionId: string, tableId: string) {
-    const blind = await this.redis.getSessionBlinds(sessionId);
+  async startPreFlop(tournamentId: string, tableId: string) {
+    const blind = await this.redis.getSessionBlinds(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
     const ante = state.ante;
 
@@ -74,17 +68,17 @@ export class DealerService {
       : blind;
 
     const smallBlind = state.blindStructure[currentBlind.currentIndex].sb;
-    await this.redis.setSessionBlinds(sessionId, currentBlind);
+    await this.redis.setSessionBlinds(tournamentId, currentBlind);
     const engine = new TableEngine(state);
     engine.startPreFlop(smallBlind, ante);
     await this.redis.saveSnapShot(tableId, state);
     return engine.state;
   }
 
-  async handleDealerAction(sessionId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
+  async handleDealerAction(tournamentId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
     const state = await this.redis.getSnapShot(tableId);
     const engine = new TableEngine(state);
-    const targetIdx = state.players.findIndex(p => p?.userId === targetUserId);
+    const targetIdx = state.players.findIndex(p => p?.id === targetUserId);
 
     if (targetIdx === -1) throw new Error("대상 플레이어를 찾을 수 없습니다.");
 
@@ -101,7 +95,7 @@ export class DealerService {
         data: { status: 'ELIMINATED' }
       });
       await this.prisma.tournament.update({
-        where: { id: sessionId },
+        where: { id: tournamentId },
         data: { activePlayers: { decrement: 1 } }
       });
     }
@@ -110,7 +104,7 @@ export class DealerService {
       const nextPlayer = state.players[state.currentTurnSeatIndex];
       if (nextPlayer) {
         await this.timeoutQueue.add('player-timeout',
-          { sessionId, tableId, userId: nextPlayer.id },
+          { tournamentId, tableId, userId: nextPlayer.id },
           { delay: 30000, jobId: tableId }
         );
         state.actionDeadline = Date.now() + 30000;
