@@ -1,14 +1,12 @@
 import { Module } from '@nestjs/common';
 import { DealerModule } from './dealer/dealer.module';
-import { KioskModule } from './kiosk/kiosk.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { SessionModule } from './store/session/session.module';
 import { UserModule } from './user/user.module';
 import { PlaysyncModule } from './playsync/playsync.module';
 import { BullModule } from '@nestjs/bullmq';
-import { SchedulerService } from './scheduler/scheduler.service';
-import { SchedulerModule } from './scheduler/scheduler.module';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports:[
@@ -21,10 +19,8 @@ import { SchedulerModule } from './scheduler/scheduler.module';
     UserModule,
     SessionModule,
     DealerModule,
-    KioskModule,
     PlaysyncModule,
-    SchedulerModule,
+    PaymentModule,
   ],
-  providers: [SchedulerService],
 })
 export class AppModule {}

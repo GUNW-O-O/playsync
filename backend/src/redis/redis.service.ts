@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import Redis from "ioredis";
-import { KioskPayMentDto } from "shared/dto/kiosk.dto";
+import { KioskPayMentDto } from "shared/dto/payment.dto";
 import { BlindTimingResult } from "shared/types/blind";
 import { BlindField, Dashboard, FullTournamentInfo } from "shared/types/tournamentMeta";
 import { UserInfo } from "shared/types/userInfo";

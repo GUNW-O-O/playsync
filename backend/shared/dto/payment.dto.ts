@@ -1,6 +1,6 @@
 import { IsString, Max, Min } from "class-validator";
 
-export class KioskPayMentDto {
+export class PayMentDto {
 
   @IsString()
   userId: string;

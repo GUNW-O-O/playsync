@@ -1,17 +1,18 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { TournamentStatus } from '@prisma/client';
-import { KioskPayMentDto } from 'shared/dto/kiosk.dto';
+import { PayMentDto } from 'shared/dto/payment.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import { SessionService } from 'src/store/session/session.service';
 import { UserService } from 'src/user/user.service';
 
 @Injectable()
-export class KioskService {
+export class PaymentService {
   constructor(private user: UserService,
     private session: SessionService,
     private prismaService: PrismaService,
     private redisService: RedisService,
+
   ) { };
 
   async getAvailableSessions(storeId: string) {
@@ -26,7 +27,7 @@ export class KioskService {
   }
 
   // 세션 참여
-  async joinSessionWithSeat(dto: KioskPayMentDto) {
+  async joinSessionWithSeat(dto: PayMentDto) {
     const isLocked = await this.redisService.acquireSeatLock(dto);
     if (!isLocked) {
       throw new ConflictException('이미 다른 유저가 선택 중인 좌석입니다.');
@@ -83,12 +84,11 @@ export class KioskService {
             activePlayers: { increment: 1 }
           }
         });
-        await this.redisService.setUserContext(session.id ,dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
+        await this.redisService.setUserContext(session.id, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
         return player;
       });
     } finally {
       await this.redisService.releaseSeatLock(dto);
     }
   }
-
 }
