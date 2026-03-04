@@ -22,11 +22,11 @@ export class DealerService {
     return await this.prisma.$transaction(async (tx) => {
       // 1. 세션 및 OTP 검증 (기존 로직)
       const tournament = await tx.tournament.findUnique({
-         where: { id: dto.tournamentId } ,
-         include : {
-          dealerSession : true,
-         }
-        });
+        where: { id: dto.tournamentId },
+        include: {
+          dealerSession: true,
+        }
+      });
       if (!tournament || tournament.dealerOtp !== dto.otp) {
         throw new UnauthorizedException('인증 정보가 올바르지 않습니다.');
       }
@@ -56,19 +56,26 @@ export class DealerService {
   }
 
   async startPreFlop(tournamentId: string, tableId: string) {
-    const blind = await this.redis.getSessionBlinds(tournamentId);
+    const blind = await this.redis.getTournamentBlind(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
-    const ante = state.ante;
-
-    const isLevelUp =
-      blind.nextLevelAt && blind.nextLevelAt < new Date();
-
-    const currentBlind = isLevelUp
-      ? getCurrentBlindLevel(state.blindStructure, blind.startedAt)
-      : blind;
-
-    const smallBlind = state.blindStructure[currentBlind.currentIndex].sb;
-    await this.redis.setSessionBlinds(tournamentId, currentBlind);
+    if (!blind) {
+      throw new Error('블라인드 정보 없음');
+    }
+    if (blind.isBreak) {
+      throw new Error('휴식 시간입니다.');
+    }
+    let currentLv = blind.currentBlindLv;
+    const currentBlind = getCurrentBlindLevel(blind.blindStructure, blind.startedAt);
+    if(currentBlind.currentIndex !== blind.currentBlindLv) {
+      await this.redis.setTournamentBlind(tournamentId, {
+        ...blind,
+        currentBlindLv: currentBlind.currentIndex,
+        nextLevelAt: currentBlind.nextLevelAt!
+      });
+      currentLv = currentBlind.currentIndex;
+    }
+    const ante = blind.blindStructure[currentLv].ante;
+    const smallBlind = blind.blindStructure[currentLv].sb;
     const engine = new TableEngine(state);
     engine.startPreFlop(smallBlind, ante);
     await this.redis.saveSnapShot(tableId, state);
@@ -91,7 +98,7 @@ export class DealerService {
       const user = await this.redis.getUserContext(targetUserId);
       await this.redis.setUserContext(user.tournamentId, targetUserId, tableId, user.seatIndex, 'KICKED');
       await this.prisma.tournamentParticipation.update({
-        where: { tournamentId_userId: { tournamentId : user.tournamentId, userId: targetUserId } },
+        where: { tournamentId_userId: { tournamentId: user.tournamentId, userId: targetUserId } },
         data: { status: 'ELIMINATED' }
       });
       await this.prisma.tournament.update({

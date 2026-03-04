@@ -59,16 +59,16 @@ export class SessionService {
       });
 
       const dealerSession = await tx.dealerSession.create({
-        data : { tournamentId : session.id },
+        data: { tournamentId: session.id },
       });
 
       await tx.table.create({
-        data : {
-          tableOrder : 1,
-          tournamentId : session.id,
-          dealerId : dealerSession.id,
+        data: {
+          tableOrder: 1,
+          tournamentId: session.id,
+          dealerId: dealerSession.id,
         }
-      }) 
+      })
 
       return session;
     });
@@ -89,15 +89,27 @@ export class SessionService {
 
   // 세션 완료
   async completeSession(id: string) {
-    return await this.prismaService.tournament.update({
-      where: {
-        id: id,
-      },
-      data: {
-        status: TournamentStatus.FINISHED,
-        finishedAt: new Date(),
-      },
-    });
+    await this.prismaService.$transaction(async (tx) => {
+      await tx.tournament.update({
+        where: {
+          id: id,
+        },
+        data: {
+          status: TournamentStatus.FINISHED,
+          finishedAt: new Date(),
+        },
+      });
+      await tx.table.deleteMany({
+        where: {
+          tournamentId: id,
+        },
+      });
+      await tx.dealerSession.delete({
+        where: {
+          tournamentId: id,
+        },
+      });
+    })
   }
 
   // 세션 수정

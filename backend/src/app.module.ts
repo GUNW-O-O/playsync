@@ -7,6 +7,8 @@ import { SessionModule } from './store/session/session.module';
 import { UserModule } from './user/user.module';
 import { PlaysyncModule } from './playsync/playsync.module';
 import { BullModule } from '@nestjs/bullmq';
+import { SchedulerService } from './scheduler/scheduler.service';
+import { SchedulerModule } from './scheduler/scheduler.module';
 
 @Module({
   imports:[
@@ -21,6 +23,8 @@ import { BullModule } from '@nestjs/bullmq';
     DealerModule,
     KioskModule,
     PlaysyncModule,
+    SchedulerModule,
   ],
+  providers: [SchedulerService],
 })
 export class AppModule {}

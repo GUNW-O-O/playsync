@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
+import { BlindField, Dashboard } from 'shared/types/tournamentMeta';
 import { getCurrentBlindLevel, parseBlindStructure } from 'shared/util/util';
 import { TableEngine } from 'src/game-engine/table-engine';
 import { ActionType, GamePhase, TableState } from 'src/game-engine/types';
@@ -29,25 +30,41 @@ export class PlaysyncService {
         },
         blindStructure: true,
       }
-
     });
 
+    const startedAt = new Date();
     if (!game) throw new Error("세션 없음");
+    const blindStructure = parseBlindStructure(game.blindStructure.structure);
+    const blindInfo = getCurrentBlindLevel(blindStructure, startedAt);
+
+    const dashboard: Dashboard = {
+      isRegistrationOpen: game.isRegistrationOpen,
+      totalPlayer: game.totalPlayers,
+      activePlayer: game.activePlayers,
+      totalBuyinAmount: game.entryFee * game.totalPlayers,
+      rebuyUntil: game.rebuyUntil,
+      avgStack: game.avgStack
+    }
+    const blindField: BlindField = {
+      isBreak: false,
+      startedAt: startedAt,
+      currentBlindLv: blindInfo.currentIndex,
+      nextLevelAt: blindInfo.nextLevelAt!,
+      serverTime: startedAt,
+      blindStructure: blindStructure,
+    }
+
     if (game.totalPlayers < 3) {
       throw new Error('시작하기에 충분한 인원이 아닙니다.')
     }
-    const startedAt = new Date();
     await this.prisma.tournament.update({
       where: { id },
       data: { startedAt: startedAt }
     });
 
-    const blind = parseBlindStructure(game.blindStructure.structure);
-    const currentBlind = getCurrentBlindLevel(blind, startedAt);
-    await this.redis.setSessionBlinds(id, currentBlind);
 
     // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
-    const tablePromises = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
+    const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
       const initialState: TableState = {
         phase: GamePhase.WAITING,
         players: Array(9).fill(null),
@@ -58,7 +75,6 @@ export class PlaysyncService {
         lastRaiserIndex: -1,
         sidePots: [],
         ante: false,
-        blindStructure: blind,
       };
 
       // 플레이어 배치
@@ -78,11 +94,13 @@ export class PlaysyncService {
       });
 
       // 개별 테이블 단위로 Redis 저장
+      await this.redis.setTournamentMeta(id, dashboard, blindField);
       await this.redis.saveSnapShot(t.id, initialState);
-
+      return { tableId: t.id, state: initialState };
     });
-
-    await Promise.all(tablePromises);
+    if(tableStates.length > 0) {
+      await this.redis.saveInitialTableSnapshots(tableStates as any);
+    }
   }
 
 
@@ -148,14 +166,15 @@ export class PlaysyncService {
       if (!session) throw new Error('세션 없음');
       if (session!.activePlayers <= session.itmCount) {
         await tx.tournamentParticipation.update({
-          where: { tournamentId_userId:
-            { tournamentId: user.tournamentId, userId }
+          where: {
+            tournamentId_userId:
+              { tournamentId: user.tournamentId, userId }
           },
-          data: { finalPlace: session.activePlayers, status : 'AWARDED' }
+          data: { finalPlace: session.activePlayers, status: 'AWARDED' }
         })
       }
       await tx.tablePlayer.delete({
-        where: { tableId_userId : { tableId: user.tableId, userId } },
+        where: { tableId_userId: { tableId: user.tableId, userId } },
       });
       await tx.tournament.update({
         where: { id: user.tournamentId },
@@ -169,17 +188,17 @@ export class PlaysyncService {
     return await this.prisma.$transaction(async (tx) => {
       // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });
+      const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
       const session = await tx.tournament.findUnique({
         where: { id: tournamentId },
       });
-      const info = await this.redis.getUserContext(userId);
-      if (!session || !user) throw new Error('세션 혹은 유저 없음.');
+      const userInfo = await this.redis.getUserContext(userId);
+      if (!session || !user || !tournamentInfo) throw new Error('세션 혹은 유저 없음.');
 
-      const blindLv = (await this.redis.getSessionBlinds(session.id)).currentIndex;
       const rebuyAmount = session.entryFee || 0;
       const rebuyStack = session.startStack;
 
-      if (user.points < rebuyAmount && session.rebuyUntil < blindLv) return -1;
+      if (user.points < rebuyAmount && tournamentInfo.isRegistrationOpen) return -1;
       await tx.user.update({
         where: { id: userId },
         data: { points: { decrement: rebuyAmount } }
@@ -201,7 +220,7 @@ export class PlaysyncService {
       });
 
       await tx.tablePlayer.update({
-        where: { tableId_userId: { tableId: info.tableId, userId } }, // tableId 관리 필요
+        where: { tableId_userId: { tableId: userInfo.tableId, userId } }, // tableId 관리 필요
         data: { currentStack: { increment: rebuyStack } }
       });
 

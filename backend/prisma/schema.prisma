@@ -118,7 +118,6 @@ model Tournament {
   activePlayers      Int     @default(0)
   totalPlayers       Int     @default(0)
   avgStack           Int     @default(0)
-  isBreak            Boolean @default(false)
 
   dealerOtp Int
 

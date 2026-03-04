@@ -1,10 +1,5 @@
 import { BlindLevelDto } from "shared/dto/blind-structure.dto";
-
-export interface BlindTimingResult {
-  currentIndex: number;   // 현재 레벨 인덱스
-  startedAt: Date;        // 시작 시각
-  nextLevelAt: Date | null; // 다음 상승 시각 (마지막이면 null)
-}
+import { BlindTimingResult } from "shared/types/blind";
 
 export function getCurrentBlindLevel(
   structure: BlindLevelDto[],
@@ -27,7 +22,6 @@ export function getCurrentBlindLevel(
 
       return {
         currentIndex: i,
-        startedAt,
         nextLevelAt,
       };
     }
@@ -36,7 +30,6 @@ export function getCurrentBlindLevel(
   // 모든 레벨을 초과한 경우 → 마지막 레벨 유지
   return {
     currentIndex: structure.length - 1,
-    startedAt,
     nextLevelAt: null,
   };
 }

@@ -46,7 +46,6 @@ export interface TableState {
   pot: number;
   sidePots: SidePot[];
   currentBet: number;
-  blindStructure: BlindLevelDto[];
   ante: boolean;
   actionDeadline?: number;
 }
