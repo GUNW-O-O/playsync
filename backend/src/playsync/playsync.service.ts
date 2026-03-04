@@ -35,7 +35,7 @@ export class PlaysyncService {
     const startedAt = new Date();
     if (!game) throw new Error("세션 없음");
     const blindStructure = parseBlindStructure(game.blindStructure.structure);
-    const blindInfo = getCurrentBlindLevel(blindStructure, startedAt);
+    const blindInfo = getCurrentBlindLevel(blindStructure, startedAt.getTime());
 
     const dashboard: Dashboard = {
       isRegistrationOpen: game.isRegistrationOpen,
@@ -47,10 +47,10 @@ export class PlaysyncService {
     }
     const blindField: BlindField = {
       isBreak: false,
-      startedAt: startedAt,
+      startedAt: startedAt.getTime(),
       currentBlindLv: blindInfo.currentIndex,
-      nextLevelAt: blindInfo.nextLevelAt!,
-      serverTime: startedAt,
+      nextLevelAt: blindInfo.nextLevelAt,
+      serverTime: startedAt.getTime(),
       blindStructure: blindStructure,
     }
 
@@ -98,7 +98,7 @@ export class PlaysyncService {
       await this.redis.saveSnapShot(t.id, initialState);
       return { tableId: t.id, state: initialState };
     });
-    if(tableStates.length > 0) {
+    if (tableStates.length > 0) {
       await this.redis.saveInitialTableSnapshots(tableStates as any);
     }
   }
@@ -226,6 +226,12 @@ export class PlaysyncService {
 
       return rebuyAmount;
     });
+  }
+
+  async getDashboardInfo(tournamentId: string) {
+    const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
+    const dashboard = await this.redis.getTournamentDashboard(tournamentId);
+    return { blind, dashboard }
   }
 
 }

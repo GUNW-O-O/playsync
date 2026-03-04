@@ -51,31 +51,18 @@ export class DealerService {
           });
         }
       }
-      return tournament.dealerSession;
+      return tournament.dealerSession?.id;
     });
   }
 
   async startPreFlop(tournamentId: string, tableId: string) {
-    const blind = await this.redis.getTournamentBlind(tournamentId);
+    const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
-    if (!blind) {
-      throw new Error('블라인드 정보 없음');
+    if (!state || state.phase !== GamePhase.WAITING) {
+      return;
     }
-    if (blind.isBreak) {
-      throw new Error('휴식 시간입니다.');
-    }
-    let currentLv = blind.currentBlindLv;
-    const currentBlind = getCurrentBlindLevel(blind.blindStructure, blind.startedAt);
-    if(currentBlind.currentIndex !== blind.currentBlindLv) {
-      await this.redis.setTournamentBlind(tournamentId, {
-        ...blind,
-        currentBlindLv: currentBlind.currentIndex,
-        nextLevelAt: currentBlind.nextLevelAt!
-      });
-      currentLv = currentBlind.currentIndex;
-    }
-    const ante = blind.blindStructure[currentLv].ante;
-    const smallBlind = blind.blindStructure[currentLv].sb;
+    const ante = blind.blindStructure[blind.currentBlindLv].ante;
+    const smallBlind = blind.blindStructure[blind.currentBlindLv].sb;
     const engine = new TableEngine(state);
     engine.startPreFlop(smallBlind, ante);
     await this.redis.saveSnapShot(tableId, state);
@@ -136,9 +123,7 @@ export class DealerService {
         await this.playsync.eliminatePlayer(player.id);
       }
     }
-
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
-
     await this.redis.saveSnapShot(tableId, state);
     await this.playsync.syncTableInventoryToDb(state);
 

@@ -11,9 +11,14 @@ export interface Dashboard {
 
 export interface BlindField {
   isBreak: boolean,
-  startedAt: Date,
+  startedAt: number,
   currentBlindLv: number,
-  nextLevelAt: Date,
-  serverTime: Date,
+  nextLevelAt: number,
+  serverTime: number,
   blindStructure: BlindLevelDto[],
+}
+
+export interface FullTournamentInfo {
+  dashboard: Dashboard,
+  blindField: BlindField,
 }

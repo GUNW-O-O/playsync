@@ -3,12 +3,10 @@ import { BlindTimingResult } from "shared/types/blind";
 
 export function getCurrentBlindLevel(
   structure: BlindLevelDto[],
-  startedAt: Date
+  startedAt: number
 ): BlindTimingResult {
-
   const now = Date.now();
-  const elapsedMs = now - startedAt.getTime();
-
+  const elapsedMs = now - startedAt;
   let accumulatedMs = 0;
 
   for (let i = 0; i < structure.length; i++) {
@@ -16,21 +14,21 @@ export function getCurrentBlindLevel(
     accumulatedMs += levelMs;
 
     if (elapsedMs < accumulatedMs) {
-      const nextLevelAt = new Date(
-        startedAt.getTime() + accumulatedMs
-      );
-
+      const nextLevelAt = new Date(startedAt + accumulatedMs);
       return {
         currentIndex: i,
-        nextLevelAt,
+        nextLevelAt: nextLevelAt.getTime(), // 계산 편의를 위해 timestamp(number) 반환 권장
+        isBreak: structure[i].lv === 99
       };
     }
   }
 
-  // 모든 레벨을 초과한 경우 → 마지막 레벨 유지
+  // [수정 포인트] 모든 레벨을 초과한 경우 (마지막 레벨)
+  // nextLevelAt을 현재로부터 24시간(86,400,000ms) 뒤로 설정하여 '레벨업 체크'에 걸리지 않게 함
   return {
     currentIndex: structure.length - 1,
-    nextLevelAt: null,
+    nextLevelAt: now + (24 * 60 * 60 * 1000),
+    isBreak: structure[structure.length - 1].lv === 99
   };
 }
 export function parseBlindStructure(data: unknown): BlindLevelDto[] {
