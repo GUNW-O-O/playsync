@@ -1,11 +1,12 @@
-// src/auth/guards/roles.guard.ts
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { GqlExecutionContext } from '@nestjs/graphql';
 import { Role } from '@prisma/client';
+import { ROLES_KEY } from '../decorator/roles.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(private reflector: Reflector) { }
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<Role[]>('roles', [
@@ -14,12 +15,17 @@ export class RolesGuard implements CanActivate {
     ]);
     if (!requiredRoles) return true;
 
-    // REST와 GQL 공통 대응을 위해 request 추출
-    const request = context.getType() === 'http' 
-      ? context.switchToHttp().getRequest() 
-      : GqlExecutionContext.create(context).getContext().req;
+    const req = this.getRequest(context);
+    const user = req.user;
 
-    const user = request.user;
-    return requiredRoles.some((role) => user.role === role);
+    // 유저의 role이 요구사항에 포함되는지 확인 
+    return user && requiredRoles.includes(user.role);
+  }
+
+  private getRequest(context: ExecutionContext) {
+    if (context.getType<any>() === 'graphql') {
+      return GqlExecutionContext.create(context).getContext().req;
+    }
+    return context.switchToHttp().getRequest();
   }
 }
