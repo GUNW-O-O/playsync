@@ -5,3 +5,10 @@ export interface JwtPayLoad {
   nickname: string;
   role: Role;
 }
+
+export interface DealerToken {
+  sub : string;
+  tournamentId : string;
+  tableId : string;
+  role : Role;
+}

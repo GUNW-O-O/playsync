@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { Role } from '@prisma/client';
-import { JwtPayLoad } from 'shared/types/jwt';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -14,8 +13,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: JwtPayLoad) {
-    // 토큰의 페이로드에서 유저 정보를 반환 (req.user에 저장됨)
+  async validate(payload: any) {
+    if(payload.role === Role.DEALER) {
+      return {
+        id : payload.sub,
+        tournamentId: payload.tournamentId,
+        tableId: payload.tableId,
+        role: Role.DEALER,
+      }
+    }
     return { 
       userId: payload.sub, 
       nickname: payload.nickname, 

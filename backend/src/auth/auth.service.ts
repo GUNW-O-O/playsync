@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
-import { CreateUserDto } from 'shared/dto/create-user.dto';
-import { LoginUserDto } from 'shared/dto/login-user.dto';
+import { CreateUserDto, LoginUserDto } from 'shared/dto/user.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -16,25 +15,26 @@ export class AuthService {
     private jwtService: JwtService,
   ) { };
 
-  async createUser(nickname: string, password: string) {
-    const existing = await this.prisma.user.findUnique({ where: { nickname } });
+  async createUser(dto: CreateUserDto) {
+    const existing = await this.prisma.user.findUnique({ where: { nickname: dto.nickname } });
     if (existing) throw new BadRequestException('이미 존재하는 ID입니다.');
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
-      data: { nickname, password: hashedPassword },
+      data: { nickname: dto.nickname, password: hashedPassword },
     });
     return user ? (`회원가입 성공! ID는 ${user.nickname} 입니다.`) : ('회원가입 실패');
   }
 
   async createStoreAdmin(dto: CreateUserDto) {
-    const existing = await this.prisma.user.findUnique({ where: { nickname : dto.nickname } });
+    const existing = await this.prisma.user.findUnique({ where: { nickname: dto.nickname } });
     if (existing) throw new BadRequestException('이미 존재하는 ID입니다.');
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
-    return this.prisma.user.create({
-      data: { nickname : dto.nickname, password: hashedPassword, role: Role.STORE_ADMIN },
+    const owner = await this.prisma.user.create({
+      data: { nickname: dto.nickname, password: hashedPassword, role: Role.STORE_ADMIN },
     });
+    return owner ? (`회원가입 성공! ID는 ${owner.nickname} 입니다.`) : ('회원가입 실패');
   }
 
   async login(dto: LoginUserDto) {
@@ -43,7 +43,7 @@ export class AuthService {
 
     const passwordMatch = await bcrypt.compare(dto.password, user.password);
     if (!passwordMatch) throw new UnauthorizedException('비밀번호나 닉네임이 틀렸습니다.')
-    
+
     return {
       accessToken: this.jwtService.sign({
         sub: user.id,

@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { DealerDto } from 'shared/dto/dealer.dto';
@@ -17,6 +18,7 @@ export class DealerService {
     private prisma: PrismaService,
     private redis: RedisService,
     private playsync: PlaysyncService,
+    private jwtService: JwtService,
   ) { }
 
   async loginDealer(dto: DealerDto) {
@@ -58,7 +60,7 @@ export class DealerService {
         tableId: dto.tableId,
         role: Role.DEALER,
       }
-      return payload;
+      return this.jwtService.sign(payload);
     });
   }
 
