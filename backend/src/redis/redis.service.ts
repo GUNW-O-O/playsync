@@ -30,6 +30,16 @@ export class RedisService {
     await this.redis.del(lockKey);
   }
 
+  async setSeatBitmap(tournamentId: string, tableId: string) {
+    const key = `tournament:seat:${tournamentId}`;
+    const field = `table:${tableId}`;
+
+    let bitmap = '000000000'
+
+    await this.redis.hset(key, field, bitmap);
+    await this.redis.expire(key, 86400);
+  }
+
   async updateSeatBitmap(tournamentId: string, tableId: string, seatIndex: number, isOccupied: boolean) {
     const key = `tournament:seat:${tournamentId}`;
     const field = `table:${tableId}`;
@@ -40,6 +50,7 @@ export class RedisService {
     bitmapArray[seatIndex] = isOccupied ? "1" : "0";
 
     await this.redis.hset(key, field, bitmapArray.join(""));
+    await this.redis.expire(key, 86400);
   }
 
   // 초기 생성 대회정보
@@ -102,8 +113,8 @@ export class RedisService {
 
   async eliminatedPlayer(tournamentId: string) {
     const key = this.getInfoKey(tournamentId);
-    await this.redis.hincrby(key, 'activePlayer', -1);
     await this.recalculateAvgStack(tournamentId);
+    return await this.redis.hincrby(key, 'activePlayer', -1);
   }
 
   async rebuyPlayer(tournamentId: string, entryFee: number) {
@@ -128,6 +139,7 @@ export class RedisService {
     return data ? JSON.parse(data) : null;
   }
 
+  // 아마 안쓸거같음.
   async setTournamentBlind(id: string, blindField: BlindField) {
     await this.redis.hset(`tournament:${id}:info`, 'blindField', JSON.stringify(blindField));
   }
@@ -157,6 +169,11 @@ export class RedisService {
         isBreak: calculated.isBreak, // lv 99에 의해 결정된 값
       };
       await this.setTournamentBlind(tournamentId, updatedBlind);
+      const curLv = updatedBlind.blindStructure[updatedBlind.currentBlindLv].lv;
+      const regiCloseAt = await this.redis.hget(`tournament:${tournamentId}:info`, 'rebuyUntil');
+      if (regiCloseAt && curLv === parseInt(regiCloseAt)) {
+        await this.redis.hset(`tournament:${tournamentId}:info`, 'isRegistrationOpen', '0');
+      }
       return updatedBlind;
     }
     return blind;
@@ -182,6 +199,7 @@ export class RedisService {
   // Table 상태 저장
   async saveSnapShot(tableId: string, table: TableState) {
     await this.redis.set(`table:state:${tableId}`, JSON.stringify(table));
+    this.redis.expire(`table:state:${tableId}`, 43200);
   }
 
   // Table 가져오기
@@ -194,6 +212,7 @@ export class RedisService {
   // 유저의 위치,정보 저장
   async setUserContext(tournamentId: string, userId: string, tableId: string, seatIndex: number, status: string) {
     await this.redis.set(`user:${userId}`, `${tournamentId}:${tableId}:${seatIndex}:${status}`);
+    this.redis.expire(`user:${userId}`, 43200);
   }
 
   // 유저 위치 정보 가져오기
@@ -202,4 +221,6 @@ export class RedisService {
     if (!raw) throw new Error(`User ${userId} not found`);
     return JSON.parse(raw);
   }
+
+
 }

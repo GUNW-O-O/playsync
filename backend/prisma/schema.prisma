@@ -119,7 +119,7 @@ model Tournament {
   totalPlayers       Int     @default(0)
   avgStack           Int     @default(0)
 
-  dealerOtp Int
+  dealerOtp Int?
 
   storeId                 String
   store                   Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)

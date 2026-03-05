@@ -62,7 +62,6 @@ export class PlaysyncService {
       data: { startedAt: startedAt }
     });
 
-
     // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
     const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
 
@@ -176,7 +175,7 @@ export class PlaysyncService {
         data: {
           finalPlace: session.activePlayers,
           status: (isInTheMoney ? 'AWARDED' : 'ELIMINATED'),
-          prizeAmount: session.totalBuyinAmount * session.entryFee,
+          prizeAmount: session.totalBuyinAmount,
         }
       })
       await tx.tablePlayer.delete({
@@ -190,10 +189,35 @@ export class PlaysyncService {
     });
     // 토너먼트 캐시에서 생존자 -1
     if (updated) {
+      const activePlayerCount = await this.redis.eliminatedPlayer(user.tournamentId);
+      if (activePlayerCount === 1) {
+        await this.tournamentFinished(user.tournamentId, userId)
+      }
     }
   }
 
   // 최후 1인
+  async tournamentFinished(tournamentId: string, userId: string) {
+    const user = await this.redis.getUserContext(userId);
+    const session = await this.prisma.tournament.findUnique({
+      where: { id: tournamentId },
+    });
+    if(!session) throw new Error('세션 없음.');
+    if(!user) throw new Error('유저 없음.');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.tournamentParticipation.update({
+        where: {
+          tournamentId_userId:
+            { tournamentId: tournamentId, userId }
+        },
+        data: {
+          finalPlace: 1,
+          status: 'AWARDED',
+          prizeAmount: session.totalBuyinAmount,
+        },
+      });
+    });
+  }
 
   // 리바인
   public async processRebuy(tournamentId: string, userId: string): Promise<number> {
@@ -243,16 +267,15 @@ export class PlaysyncService {
 
       return rebuyStack;
     });
-    if(userStack !== 0) {
-      // await this.redis.
+    if (userStack !== 0) {
+      await this.redis.rebuyPlayer(tournamentId, userStack);
     }
     return userStack;
   }
 
   async getDashboardInfo(tournamentId: string) {
-    const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
-    const dashboard = await this.redis.getTournamentDashboard(tournamentId);
-    return { blind, dashboard }
+    const info = await this.redis.getFullTournamentInfo(tournamentId);
+    return info ? info : null;
   }
 
 }
