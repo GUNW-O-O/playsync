@@ -69,7 +69,7 @@ export class PaymentService {
         const player = await tx.tablePlayer.create({
           data: {
             tournamentId: session.id,
-            nickName: user.nickname,
+            nickname: user.nickname,
             tableId: dto.tableId,
             userId: dto.userId,
             seatPosition: dto.seatIndex,
@@ -85,7 +85,22 @@ export class PaymentService {
           }
         });
         await this.redisService.setUserContext(session.id, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
-        return player;
+        if (session.status === TournamentStatus.ONGOING) {
+          const state = await this.redisService.getSnapShot(dto.tableId);
+          state.players[dto.seatIndex] = {
+            id: user.id,
+            tableId: dto.tableId,
+            nickname: user.nickname!,
+            seatIndex: dto.seatIndex,
+            stack: session.startStack,
+            bet: 0,
+            hasFolded: true,
+            isAllIn: false,
+            button: false,
+            totalContributed: 0,
+          }
+          await this.redisService.saveSnapShot(dto.tableId, state);
+        }
       });
     } finally {
       await this.redisService.releaseSeatLock(dto);

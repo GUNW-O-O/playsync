@@ -1,7 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import Redis from "ioredis";
-import { KioskPayMentDto } from "shared/dto/payment.dto";
-import { BlindTimingResult } from "shared/types/blind";
+import { PayMentDto } from "shared/dto/payment.dto";
 import { BlindField, Dashboard, FullTournamentInfo } from "shared/types/tournamentMeta";
 import { UserInfo } from "shared/types/userInfo";
 import { getCurrentBlindLevel } from "shared/util/util";
@@ -12,7 +11,7 @@ export class RedisService {
   constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) { }
 
   // 좌석 선점 시도
-  async acquireSeatLock(dto: KioskPayMentDto): Promise<boolean> {
+  async acquireSeatLock(dto: PayMentDto): Promise<boolean> {
     const lockKey = `lock:seat:${dto.tableId}:${dto.seatIndex}`;
     const expireTime = 10;
 
@@ -23,7 +22,7 @@ export class RedisService {
   }
 
   // 락 해제 (결제 완료 후 또는 취소 시)
-  async releaseSeatLock(dto: KioskPayMentDto) {
+  async releaseSeatLock(dto: PayMentDto) {
     const lockKey = `lock:seat:${dto.tableId}:${dto.seatIndex}`;
     await this.redis.del(lockKey);
   }
@@ -41,12 +40,12 @@ export class RedisService {
   }
 
   // 초기 생성 대회정보
-  async setTournamentMeta(id: string, dashboard: any, blindField: any) {
+  async setTournamentMeta(id: string, dashboard: Dashboard, blindField: BlindField) {
     const key = `tournament:${id}:info`;
     await this.redis.hset(
       key,
       'dashboard', JSON.stringify(dashboard),
-      'blindField', JSON.stringify(blindField)
+      'blindField', JSON.stringify(blindField),
     );
     // 데이터 유실 방지를 위해 적절한 TTL 설정 (예: 24시간)
     await this.redis.expire(key, 86400);

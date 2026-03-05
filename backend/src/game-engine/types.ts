@@ -1,5 +1,3 @@
-import { BlindLevelDto } from "shared/dto/blind-structure.dto";
-
 export enum GamePhase {
   WAITING,
   PRE_FLOP,
@@ -27,7 +25,7 @@ export enum ActionType {
 export interface TablePlayer {
   id: string;
   tableId: string;
-  nickName: string;
+  nickname: string;
   seatIndex: number;
   stack: number;
   bet: number;

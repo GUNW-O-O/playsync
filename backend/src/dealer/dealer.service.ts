@@ -45,7 +45,7 @@ export class DealerService {
             where: {
               userId: { in: userIds },
               tournamentId: dto.tournamentId,
-              status: 'WAITING' // 대기 중인 사람만
+              status: 'WAITING'
             },
             data: { status: 'PLAYING' }
           });

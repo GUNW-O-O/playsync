@@ -65,12 +65,16 @@ export class PlaysyncService {
 
     // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
     const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
+
+      const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
+      const btnIdx = t.tablePlayers[randomCnt-1].seatPosition;
+
       const initialState: TableState = {
         phase: GamePhase.WAITING,
         players: Array(9).fill(null),
         pot: 0,
         currentBet: 0,
-        buttonUser: 0,
+        buttonUser: btnIdx,
         currentTurnSeatIndex: -1,
         lastRaiserIndex: -1,
         sidePots: [],
@@ -82,7 +86,7 @@ export class PlaysyncService {
         initialState.players[tp.seatPosition] = {
           id: tp.id,
           tableId: t.id,
-          nickName: tp.nickName!,
+          nickname: tp.nickname!,
           seatIndex: tp.seatPosition,
           stack: tp.currentStack,
           bet: 0,
@@ -93,12 +97,10 @@ export class PlaysyncService {
         };
       });
 
-      // 개별 테이블 단위로 Redis 저장
-      await this.redis.setTournamentMeta(id, dashboard, blindField);
-      await this.redis.saveSnapShot(t.id, initialState);
       return { tableId: t.id, state: initialState };
     });
     if (tableStates.length > 0) {
+      await this.redis.setTournamentMeta(id, dashboard, blindField);
       await this.redis.saveInitialTableSnapshots(tableStates as any);
     }
   }

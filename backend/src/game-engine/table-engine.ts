@@ -87,19 +87,6 @@ export class TableEngine {
     }
   }
 
-  // 중간에 유저가 앉을 때 (밸런싱 혹은 늦은 참가)
-  public addPlayer(player: TablePlayer, seatIndex: number) {
-    if (this.state.players[seatIndex] == null) {
-      this.state.players[seatIndex] = player;
-    }
-    else throw new Error('빈자리가 아닙니다.');
-  }
-
-  // 유저가 나갈 때 (탈락 혹은 테이블 이동)
-  public removePlayer(seatIndex: number) {
-    this.state.players[seatIndex] = null; // 자리는 비우되 인덱스는 유지
-  }
-
   // --- 사이드 팟 계산 로직 ---
   public calculateSidePots() {
     this.state.sidePots = [];
