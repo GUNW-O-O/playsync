@@ -1,6 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { TournamentStatus } from '@prisma/client';
 import { PayMentDto } from 'shared/dto/payment.dto';
+import { TableState } from 'src/game-engine/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import { SessionService } from 'src/store/session/session.service';
@@ -37,7 +38,14 @@ export class PaymentService {
       if (!user) {
         throw new ConflictException('잘못된 유저 ID 입니다.')
       }
-      return await this.prismaService.$transaction(async (tx) => {
+      const session = await this.prismaService.tournament.findUnique({
+        where: { id: dto.tournamentId },
+      });
+      if (!session) throw new ConflictException('잘못된 세션 ID 입니다.');
+      if (session.status === TournamentStatus.FINISHED || !session.isRegistrationOpen) {
+        throw new ConflictException('이미 종료된 세션입니다.');
+      }
+      const result = await this.prismaService.$transaction(async (tx) => {
         // DB 최종 중복 체크
         const exsitingPlayer = await tx.tablePlayer.findUnique({
           where: {
@@ -48,25 +56,14 @@ export class PaymentService {
           }
         });
         if (exsitingPlayer) throw new Error('이미 플레이어가 존재하는 좌석입니다');
-
-        const session = await tx.tournament.findUnique({
-          where: { id: dto.tableId },
-        });
-        if (!session) throw new ConflictException('잘못된 세션 ID 입니다.');
-        if (session.status === TournamentStatus.FINISHED || !session.isRegistrationOpen) {
-          throw new ConflictException('이미 종료된 세션입니다.');
-        }
-
         await this.user.paymentPoint(tx, dto.userId, dto.tableId, session.name, session.entryFee);
-
         await tx.tournamentParticipation.create({
           data: {
             userId: dto.userId,
-            tournamentId: session.id,
+            tournamentId: dto.tournamentId,
           }
         });
-
-        const player = await tx.tablePlayer.create({
+        await tx.tablePlayer.create({
           data: {
             tournamentId: session.id,
             nickname: user.nickname,
@@ -76,32 +73,40 @@ export class PaymentService {
             currentStack: session.startStack,
           }
         })
-
         await tx.tournament.update({
-          where: { id: dto.tableId },
+          where: { id: dto.tournamentId },
           data: {
             totalPlayers: { increment: 1 },
-            activePlayers: { increment: 1 }
+            activePlayers: { increment: 1 },
+            totalBuyinAmount: { increment: session.entryFee },
           }
         });
-        await this.redisService.setUserContext(session.id, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
+        let updatedState: TableState | null = null;
         if (session.status === TournamentStatus.ONGOING) {
-          const state = await this.redisService.getSnapShot(dto.tableId);
-          state.players[dto.seatIndex] = {
-            id: user.id,
-            tableId: dto.tableId,
-            nickname: user.nickname!,
-            seatIndex: dto.seatIndex,
-            stack: session.startStack,
-            bet: 0,
-            hasFolded: true,
-            isAllIn: false,
-            button: false,
-            totalContributed: 0,
+          updatedState = await this.redisService.getSnapShot(dto.tableId);
+          if (updatedState) {
+            updatedState.players[dto.seatIndex] = {
+              id: user.id,
+              tableId: dto.tableId,
+              nickname: user.nickname!,
+              seatIndex: dto.seatIndex,
+              stack: session.startStack,
+              bet: 0,
+              hasFolded: true,
+              isAllIn: false,
+              button: false,
+              totalContributed: 0,
+            };
           }
-          await this.redisService.saveSnapShot(dto.tableId, state);
         }
+        return { success: true, updatedState };
       });
+      await this.redisService.setUserContext(dto.tournamentId, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
+      if(result.updatedState) {
+        await this.redisService.saveSnapShot(dto.tableId, result.updatedState);
+      }
+      await this.redisService.joinPlayer(dto.tournamentId, session.entryFee);
+      return result.updatedState;
     } finally {
       await this.redisService.releaseSeatLock(dto);
     }

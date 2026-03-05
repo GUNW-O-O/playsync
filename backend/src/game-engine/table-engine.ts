@@ -110,7 +110,7 @@ export class TableEngine {
     }
   }
 
-  public resolveWinner(winnerIds: string[]) {
+  public async resolveWinner(winnerIds: string[]) {
     // 사이드팟 리스트를 돌면서 승자가 포함되어 있으면 해당 금액 분배
     for (const pot of this.state.sidePots) {
       const winnersForThisPot = winnerIds.filter(id => pot.relevantPlayerIds.includes(id));
@@ -124,7 +124,7 @@ export class TableEngine {
     }
     this.state.pot = 0;
     this.state.sidePots = [];
-    this.handleHandEnd();
+    await this.handleHandEnd();
   }
 
   private handleCall(player: TablePlayer) {
@@ -251,17 +251,19 @@ export class TableEngine {
   }
 
   private initTable() {
-    this.state.players.forEach(p => {
+    this.state.players = this.state.players.map(p => {
       if (p && p.stack > 0) {
-        p.bet = 0;
-        p.totalContributed = 0;
-        p.hasFolded = false;
-        p.isAllIn = false;
+        p = {
+          ...p,
+          bet: 0,
+          totalContributed: 0,
+          hasFolded: false,
+          isAllIn: false,
+        }
+        return p;
       }
-      else if (p && p.stack <= 0) {
-        p = null;
-      }
-    })
+      return null; // 스택이 0인 플레이어는 다음 핸드 시작 시점에 명확히 제거
+    });
     this.state.lastRaiserIndex = -1;
     this.state.pot = 0;
     this.state.currentBet = 0;

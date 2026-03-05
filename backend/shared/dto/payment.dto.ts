@@ -3,6 +3,9 @@ import { IsString, Max, Min } from "class-validator";
 export class PayMentDto {
 
   @IsString()
+  tournamentId: string;
+
+  @IsString()
   userId: string;
 
   @IsString()

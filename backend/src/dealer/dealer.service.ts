@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { DealerDto } from 'shared/dto/dealer.dto';
 import { getCurrentBlindLevel } from 'shared/util/util';
@@ -51,7 +52,13 @@ export class DealerService {
           });
         }
       }
-      return tournament.dealerSession?.id;
+      const payload = {
+        sub: tournament.dealerSession?.id,
+        tournamentId: dto.tournamentId,
+        tableId: dto.tableId,
+        role: Role.DEALER,
+      }
+      return payload;
     });
   }
 

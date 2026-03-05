@@ -67,7 +67,7 @@ export class PlaysyncService {
     const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
 
       const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
-      const btnIdx = t.tablePlayers[randomCnt-1].seatPosition;
+      const btnIdx = t.tablePlayers[randomCnt - 1].seatPosition;
 
       const initialState: TableState = {
         phase: GamePhase.WAITING,
@@ -160,34 +160,44 @@ export class PlaysyncService {
   // 탈락
   public async eliminatePlayer(userId: string) {
     const user = await this.redis.getUserContext(userId);
-
-    await this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       const session = await tx.tournament.findUnique({
         where: { id: user.tournamentId },
       });
       if (!session) throw new Error('세션 없음');
-      if (session!.activePlayers <= session.itmCount) {
-        await tx.tournamentParticipation.update({
-          where: {
-            tournamentId_userId:
-              { tournamentId: user.tournamentId, userId }
-          },
-          data: { finalPlace: session.activePlayers, status: 'AWARDED' }
-        })
-      }
+
+      const isInTheMoney = session!.activePlayers <= session.itmCount;
+
+      await tx.tournamentParticipation.update({
+        where: {
+          tournamentId_userId:
+            { tournamentId: user.tournamentId, userId }
+        },
+        data: {
+          finalPlace: session.activePlayers,
+          status: (isInTheMoney ? 'AWARDED' : 'ELIMINATED'),
+          prizeAmount: session.totalBuyinAmount * session.entryFee,
+        }
+      })
       await tx.tablePlayer.delete({
         where: { tableId_userId: { tableId: user.tableId, userId } },
       });
-      await tx.tournament.update({
+      const updSession = await tx.tournament.update({
         where: { id: user.tournamentId },
         data: { activePlayers: { decrement: 1 } }
       });
+      return updSession;
     });
+    // 토너먼트 캐시에서 생존자 -1
+    if (updated) {
+    }
   }
+
+  // 최후 1인
 
   // 리바인
   public async processRebuy(tournamentId: string, userId: string): Promise<number> {
-    return await this.prisma.$transaction(async (tx) => {
+    const userStack = await this.prisma.$transaction(async (tx) => {
       // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });
       const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
@@ -216,6 +226,11 @@ export class PlaysyncService {
         }
       });
 
+      await tx.tournament.update({
+        where: { id: tournamentId },
+        data: { totalBuyinAmount: { increment: session.entryFee } },
+      })
+
       await tx.tournamentParticipation.update({
         where: { tournamentId_userId: { tournamentId, userId } },
         data: { buyInCount: { increment: 1 } },
@@ -226,8 +241,12 @@ export class PlaysyncService {
         data: { currentStack: { increment: rebuyStack } }
       });
 
-      return rebuyAmount;
+      return rebuyStack;
     });
+    if(userStack !== 0) {
+      // await this.redis.
+    }
+    return userStack;
   }
 
   async getDashboardInfo(tournamentId: string) {

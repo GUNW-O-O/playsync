@@ -10,6 +10,9 @@ import { TableState } from "src/game-engine/types";
 export class RedisService {
   constructor(@Inject('REDIS_CLIENT') private readonly redis: Redis) { }
 
+  private getInfoKey(id: string) {
+    return `tournament:${id}:info`;
+  }
   // 좌석 선점 시도
   async acquireSeatLock(dto: PayMentDto): Promise<boolean> {
     const lockKey = `lock:seat:${dto.tableId}:${dto.seatIndex}`;
@@ -41,35 +44,83 @@ export class RedisService {
 
   // 초기 생성 대회정보
   async setTournamentMeta(id: string, dashboard: Dashboard, blindField: BlindField) {
-    const key = `tournament:${id}:info`;
+    const key = this.getInfoKey(id);
     await this.redis.hset(
       key,
-      'dashboard', JSON.stringify(dashboard),
-      'blindField', JSON.stringify(blindField),
+      // Dashboard 필드 평탄화
+      'isRegistrationOpen', dashboard.isRegistrationOpen ? 1 : 0,
+      'totalPlayer', dashboard.totalPlayer,
+      'activePlayer', dashboard.activePlayer,
+      'totalBuyinAmount', dashboard.totalBuyinAmount,
+      'rebuyUntil', dashboard.rebuyUntil,
+      'avgStack', dashboard.avgStack,
+      // BlindField는 객체로 유지
+      'blindField', JSON.stringify(blindField)
     );
-    // 데이터 유실 방지를 위해 적절한 TTL 설정 (예: 24시간)
-    await this.redis.expire(key, 86400);
+    await this.redis.expire(key, 86400); // 24시간 TTL
   }
 
   // 두 필드를 한 번에 요청
-  async getFullTournamentInfo(id: string): Promise<FullTournamentInfo> {
-    const key = `tournament:${id}:info`;
+  async getFullTournamentInfo(id: string): Promise<FullTournamentInfo | null> {
+    const key = this.getInfoKey(id);
+    const raw = await this.redis.hgetall(key);
 
-    const [rawDashboard, rawBlind] = await this.redis.hmget(key, 'dashboard', 'blindField');
+    if (!raw || Object.keys(raw).length === 0) return null;
 
     return {
-      dashboard: rawDashboard ? JSON.parse(rawDashboard) : null,
-      blindField: rawBlind ? JSON.parse(rawBlind) : null,
+      dashboard: {
+        isRegistrationOpen: raw.isRegistrationOpen === '1',
+        totalPlayer: parseInt(raw.totalPlayer || '0'),
+        activePlayer: parseInt(raw.activePlayer || '0'),
+        totalBuyinAmount: parseInt(raw.totalBuyinAmount || '0'),
+        rebuyUntil: parseInt(raw.rebuyUntil || '0'),
+        avgStack: parseInt(raw.avgStack || '0'),
+      },
+      blindField: raw.blindField ? JSON.parse(raw.blindField) : null,
     };
   }
 
+  private async recalculateAvgStack(tournamentId: string) {
+    const key = this.getInfoKey(tournamentId);
+    const [totalBuyin, active] = await this.redis.hmget(key, 'totalBuyinAmount', 'activePlayer');
+
+    const totalBuyinNum = parseInt(totalBuyin || '0');
+    const activeNum = parseInt(active || '1');
+
+    const newAvg = activeNum > 0 ? Math.floor(totalBuyinNum / activeNum) : 0;
+    await this.redis.hset(key, 'avgStack', newAvg);
+  }
+
   async getTournamentDashboard(id: string): Promise<Dashboard | null> {
-    const data = await this.redis.hget(`tournament:${id}:info`, 'dashboard');
-    return data ? JSON.parse(data) : null;
+    const info = await this.getFullTournamentInfo(id);
+    return info ? info.dashboard : null;
   }
 
   async setTournamentDashboard(id: string, dashboard: Dashboard) {
     await this.redis.hset(`tournament:${id}:info`, 'dashboard', JSON.stringify(dashboard));
+  }
+
+  async eliminatedPlayer(tournamentId: string) {
+    const key = this.getInfoKey(tournamentId);
+    await this.redis.hincrby(key, 'activePlayer', -1);
+    await this.recalculateAvgStack(tournamentId);
+  }
+
+  async rebuyPlayer(tournamentId: string, entryFee: number) {
+    const key = this.getInfoKey(tournamentId);
+    await this.redis.hincrby(key, 'totalBuyinAmount', entryFee);
+
+    await this.recalculateAvgStack(tournamentId);
+  }
+
+  async joinPlayer(tournamentId: string, entryFee: number) {
+    const key = this.getInfoKey(tournamentId);
+    await this.redis.pipeline()
+      .hincrby(key, 'totalPlayer', 1)
+      .hincrby(key, 'activePlayer', 1)
+      .hincrby(key, 'totalBuyinAmount', entryFee)
+      .exec();
+    return await this.redis.hincrby(key, 'totalPlayer', 1);
   }
 
   async getTournamentBlind(id: string): Promise<BlindField | null> {
