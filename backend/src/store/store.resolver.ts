@@ -8,7 +8,7 @@ import { Store } from "./store.model";
 import { StoreService } from "./store.service";
 import { CreateStoreDto } from "shared/dto/store.dto";
 import { SessionService } from "./session/session.service";
-import { Tournament } from "./session/session.model";
+import { AdminTournament } from "./session/session.model";
 
 @Resolver(() => Store)
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -47,15 +47,9 @@ export class StoreResolver {
   }
 
   // Store 타입 내의 tournaments 필드에 대한 별도 처리기
-  @ResolveField(() => [Tournament])
+  @ResolveField(() => [AdminTournament])
   @UseGuards(JwtAuthGuard)
-  async tournaments(@Parent() store: Store, @Context() ctx) {
-    const user = ctx.req.user;
-    const { id } = store;
-    const data = await this.sessionService.getStoreAllSessions(id);
-    if (user.rold === Role.USER) {
-      return data.map(({ dealerOtp, ...rest }) => rest);
-    }
-    return data;
+  async tournaments(@Parent() store: Store) {
+    return await this.sessionService.getStoreAllSessions(store.id);
   }
 }

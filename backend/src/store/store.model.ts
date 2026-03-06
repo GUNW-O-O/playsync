@@ -1,5 +1,5 @@
 import { ObjectType, Field, ID } from '@nestjs/graphql';
-import { Tournament } from './session/session.model';
+import { AdminTournament } from './session/session.model';
 
 @ObjectType()
 export class Store {
@@ -19,7 +19,7 @@ export class Store {
   @Field()
   updatedAt: Date;
 
-  @Field(() => [Tournament], { nullable: 'items' })
-  tournaments?: Tournament[];
+  @Field(() => [AdminTournament], { nullable: 'items' })
+  tournaments?: AdminTournament[];
   
 }
