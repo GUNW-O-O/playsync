@@ -1,6 +1,7 @@
 import { Field, Int, ObjectType } from "@nestjs/graphql";
-import { GameType } from "@prisma/client";
+import { BlindStructure, GameType } from "@prisma/client";
 import { IsBoolean, IsEnum, IsInt, IsString, Min } from "class-validator";
+import { BlindLevelDto } from "shared/dto/blind-structure.dto";
 
 @ObjectType()
 export class AdminTournament {
@@ -64,7 +65,7 @@ export class UserTournament {
 
   @Field()
   @IsString()
-  blindId: string;
+  blindInfo: string;
 
   @Field()
   @IsInt()

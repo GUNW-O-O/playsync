@@ -185,10 +185,10 @@ export class PlaysyncService {
         where: { id: user.tournamentId },
         data: { activePlayers: { decrement: 1 } }
       });
-      return updSession;
+      return {success : true, updSession};
     });
     // 토너먼트 캐시에서 생존자 -1
-    if (updated) {
+    if (updated.success) {
       const activePlayerCount = await this.redis.eliminatedPlayer(user.tournamentId);
       if (activePlayerCount === 1) {
         await this.tournamentFinished(user.tournamentId, userId)
