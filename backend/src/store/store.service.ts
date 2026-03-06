@@ -24,20 +24,20 @@ export class StoreService {
     return store;
   }
 
-  async createStore(dto: CreateStoreDto) {
+  async createStore(ownerId: string, dto: CreateStoreDto) {
     return this.prisma.store.create({
       data: {
         name: dto.storeName,
-        ownerId: dto.ownerId,
+        ownerId: ownerId,
       }
     });
   }
 
-  async updateStore(id: string, dto: UpdateStoreDto) {
-    await this.getStoreDetail(id, dto.ownerId);
+  async updateStore(storeId: string, dto: UpdateStoreDto) {
+    await this.getStoreDetail(storeId, dto.ownerId);
     return this.prisma.store.update({
-      where: { id },
-      data: { ...dto },
+      where: { id: storeId },
+      data: { name: dto.storeName },
     });
   }
 

@@ -1,5 +1,5 @@
 // src/session/dto/create-session.dto.ts
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min, ValidateIf } from 'class-validator';
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { GameType } from '@prisma/client';
 
 export class CreateTournamentDto {

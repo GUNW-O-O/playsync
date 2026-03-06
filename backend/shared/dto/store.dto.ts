@@ -8,12 +8,6 @@ export class CreateStoreDto {
   @IsNotEmpty()
   @MinLength(2)
   storeName: string;
-
-  @Field()
-  @IsString()
-  @IsNotEmpty()
-  @IsString()
-  ownerId: string;
 }
 
 export class UpdateStoreDto {
