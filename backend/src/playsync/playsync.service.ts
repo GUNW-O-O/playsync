@@ -222,7 +222,6 @@ export class PlaysyncService {
   // 리바인
   public async processRebuy(tournamentId: string, userId: string): Promise<number> {
     const userStack = await this.prisma.$transaction(async (tx) => {
-      // 유저 포인트 및 세션 리바인 가능 여부 조회
       const user = await tx.user.findUnique({ where: { id: userId } });
       const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
       const session = await tx.tournament.findUnique({

@@ -75,6 +75,7 @@ export class RedisService {
   async getFullTournamentInfo(id: string): Promise<FullTournamentInfo | null> {
     const key = this.getInfoKey(id);
     const raw = await this.redis.hgetall(key);
+    const blindField = await this.checkAndSyncBlindLevel(id);
 
     if (!raw || Object.keys(raw).length === 0) return null;
 
@@ -87,7 +88,7 @@ export class RedisService {
         rebuyUntil: parseInt(raw.rebuyUntil || '0'),
         avgStack: parseInt(raw.avgStack || '0'),
       },
-      blindField: raw.blindField ? JSON.parse(raw.blindField) : null,
+      blindField : blindField,
     };
   }
 
@@ -156,7 +157,7 @@ export class RedisService {
     // 최적화: 아직 다음 레벨 시간이 되지 않았다면 현재 상태 그대로 반환
     // (이미 휴식 중이라면 blind.isBreak가 true인 상태로 반환됨)
     if (blind.nextLevelAt && now < blind.nextLevelAt) {
-      return blind;
+      return {...blind, serverTime: now};
     }
     // 시간 경과 시에만 상세 계산 수행
     const calculated = getCurrentBlindLevel(blind.blindStructure, blind.startedAt);
@@ -166,7 +167,8 @@ export class RedisService {
         ...blind,
         currentBlindLv: calculated.currentIndex,
         nextLevelAt: calculated.nextLevelAt,
-        isBreak: calculated.isBreak, // lv 99에 의해 결정된 값
+        isBreak: calculated.isBreak, // lv 99,
+        serverTime: now,
       };
       await this.setTournamentBlind(tournamentId, updatedBlind);
       const curLv = updatedBlind.blindStructure[updatedBlind.currentBlindLv].lv;
