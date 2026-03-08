@@ -14,8 +14,8 @@ export class SessionController {
   constructor(private readonly sessionService: SessionService) {}
 
   @Post()
-  async create(@Body() dto: CreateTournamentDto) {
-    return this.sessionService.createSession(dto);
+  async create(@Body('dto') dto: CreateTournamentDto, @Body('blindStructure') blindStructure?: any) {
+    return this.sessionService.createSession(dto, blindStructure);
   }
 
   @Get(':storeId')

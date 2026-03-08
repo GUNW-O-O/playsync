@@ -36,4 +36,12 @@ export class UserService {
     })
   }
 
+  // 임시 포인트 추가 메소드
+  async addPoint(userId: string) {
+    await this.prisma.user.update({
+      where : {id : userId},
+      data : {points : {increment : 10000}}
+    })
+    return await this.prisma.user.findUnique({where : {id : userId}});
+  }
 }
