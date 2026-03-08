@@ -1,18 +1,17 @@
 import { Body, Controller, Post, UsePipes, ValidationPipe } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { CreateUserDto } from 'shared/dto/create-user.dto';
-import { LoginUserDto } from 'shared/dto/user.dto';
+import { CreateUserDto, LoginUserDto } from 'shared/dto/user.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService : AuthService) {};
 
-  @Post('signup')
-  @UsePipes(new ValidationPipe({ whitelist : true }))
-  async signup(@Body() dto : CreateUserDto) {
-    const user = await this.authService.signup(dto);
-    return { nickname : user.nickname };
-  }
+  // @Post('signup')
+  // @UsePipes(new ValidationPipe({ whitelist : true }))
+  // async signup(@Body() dto : CreateUserDto) {
+  //   const user = await this.authService.signup(dto);
+  //   return { nickname : user.nickname };
+  // }
 
   @Post('login')
   @UsePipes(new ValidationPipe({ whitelist : true }))
@@ -23,8 +22,7 @@ export class AuthController {
   @Post('join')
   @UsePipes(new ValidationPipe({ whitelist : true }))
   async storeOwnerSignin(@Body() dto : CreateUserDto) {
-    const storeOwner = await this.authService.signinStoreAdmin(dto);
-    return { nickname : storeOwner.nickname}
+    return await this.authService.createStoreAdmin(dto);
   }
 
 }

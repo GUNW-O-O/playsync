@@ -12,9 +12,6 @@ export class DealerController {
 
     if (!dealerSession) throw new Error('세션 없음')
 
-    return {
-      accessToken: dealerSession.id,
-      tournamentId: dealerSession.tournamentId,
-    };
+    return dealerSession;
   }
 }

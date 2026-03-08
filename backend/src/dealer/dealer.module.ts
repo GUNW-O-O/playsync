@@ -3,6 +3,7 @@ import { DealerController } from './dealer.controller';
 import { DealerService } from './dealer.service';
 import { PlaysyncModule } from 'src/playsync/playsync.module';
 import { BullModule } from '@nestjs/bullmq';
+import { RedisService } from 'src/redis/redis.service';
 
 @Module({
   imports: [
@@ -11,7 +12,7 @@ import { BullModule } from '@nestjs/bullmq';
         }),
     PlaysyncModule],
   controllers: [DealerController],
-  providers: [DealerService],
+  providers: [DealerService, RedisService],
   exports: [DealerService],
 })
 export class DealerModule {}

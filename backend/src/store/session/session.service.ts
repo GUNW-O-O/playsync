@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { TournamentStatus } from '@prisma/client';
+import { CreateBlindStructureDto } from 'shared/dto/blind-structure.dto';
 import { CreateTournamentDto, UpdateTournamentDto } from 'shared/dto/tournament.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
@@ -43,7 +44,29 @@ export class SessionService {
     });
   }
 
-  async createSession(dto: CreateTournamentDto) {
+  async createBlind(blindStructure: CreateBlindStructureDto) {
+    const blind = await this.prismaService.blindStructure.create({
+      data : {
+        name : blindStructure.name,
+        structure : blindStructure.structure as any,
+        storeId : blindStructure.storeId
+      }
+    })
+    return blind;
+  }
+
+  async createSession(dto: CreateTournamentDto, blindStructure?: CreateBlindStructureDto) {
+    let blindId = "blind";
+    if ((dto.blindId === undefined || dto.blindId === null) && blindStructure) {
+      const newBlind = await this.prismaService.blindStructure.create({
+        data : {
+          name: blindStructure.name,
+          structure: blindStructure.structure as any,
+          storeId: blindStructure.storeId
+        }
+      })
+      blindId = newBlind.id;
+    }
     const sessionInfo = await this.prismaService.$transaction(async (tx) => {
       // 1. 기본 게임 세션 생성 (블라인드 구조 연결 및 OTP 생성 포함)
       const session = await tx.tournament.create({
@@ -51,7 +74,7 @@ export class SessionService {
           name: dto.name,
           type: dto.type,
           storeId: dto.storeId,
-          blindId: dto.blindId,
+          blindId: (dto.blindId ? dto.blindId : blindId),
           dealerOtp: Math.floor(1000 + Math.random() * 9000), // 4자리 OTP [cite: 9]
           startStack: dto.startStack,
           avgStack: dto.startStack,

@@ -14,7 +14,7 @@ export class CreateTournamentDto {
 
   @IsString()
   @IsOptional()
-  blindId: string;
+  blindId?: string;
 
   @IsInt()
   @Min(0)

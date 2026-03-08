@@ -14,12 +14,12 @@ import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports:[
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      // 핵심: context에 req를 담아야 JwtAuthGuard에서 req.user를 꺼낼 수 있습니다.
-      context: ({ req }) => ({ req }),
-    }),
+    // GraphQLModule.forRoot<ApolloDriverConfig>({
+    //   driver: ApolloDriver,
+    //   autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
+    //   // 핵심: context에 req를 담아야 JwtAuthGuard에서 req.user를 꺼낼 수 있습니다.
+    //   context: ({ req }) => ({ req }),
+    // }),
     BullModule.forRoot({
       connection : {host : 'localhost', port: 6379}
     }),

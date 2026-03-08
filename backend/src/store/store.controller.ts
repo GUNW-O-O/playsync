@@ -1,29 +1,30 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CreateStoreDto, UpdateStoreDto } from 'shared/dto/store.dto';
 import { Roles } from 'src/auth/decorator/roles.decorator';
 import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { StoreService } from './store.service';
+import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 
 @Controller('store')
-@UseGuards(RolesGuard)
+@UseGuards(RolesGuard, JwtAuthGuard)
 @Roles(Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
 export class StoreController {
   constructor(private storeService: StoreService) { };
 
   @Post()
-  async createStore(@Body() dto: CreateStoreDto) {
-    return this.storeService.createStore(dto);
+  async createStore(@Req() req, @Body() dto: CreateStoreDto) {
+    return this.storeService.createStore(req.user.userId, dto);
   }
 
-  @Get(':ownerId')
-  async getUserStores(@Param('ownerId') ownerId: string) {
-    return this.storeService.getUserStores(ownerId);
+  @Get('/list')
+  async getUserStores(@Req() req) {
+    return this.storeService.getUserStores(req.user.userId);
   }
 
-  @Get(':ownerId/:id')
-  async getStoreDetail(@Param('id') id: string, @Param('ownerId') ownerId: string) {
-    return this.storeService.getStoreDetail(id, ownerId);
+  @Get('/list/:id')
+  async getStoreDetail(@Req() req, @Param('id') id: string) {
+    return this.storeService.getStoreDetail(id, req.user.userId);
   }
 
   @Put(':id')

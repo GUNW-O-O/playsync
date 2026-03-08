@@ -49,7 +49,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: { tableId: string; userId: string; sessionId: string }
   ) {
     // 1. 유저 컨텍스트 저장
-    await this.redis.setUserContext(data.sessionId, data.userId, data.tableId, 'WAITING');
+    // await this.redis.setUserContext(data.sessionId, data.userId, data.tableId, 'WAITING');
 
     // 2. 내부 룸 관리 
     let tableRoom = this.clients.get(data.tableId);
