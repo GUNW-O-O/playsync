@@ -7,6 +7,6 @@ import { StoreResolver } from './store.resolver';
 @Module({
   imports : [UserModule],
   controllers : [StoreController],
-  providers : [StoreService, StoreResolver],
+  providers : [StoreService,] // StoreResolver],
 })
 export class StoreModule {}

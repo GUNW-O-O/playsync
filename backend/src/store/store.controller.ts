@@ -7,7 +7,7 @@ import { StoreService } from './store.service';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 
 @Controller('store')
-@UseGuards(RolesGuard, JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard )
 @Roles(Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
 export class StoreController {
   constructor(private storeService: StoreService) { };
@@ -17,12 +17,12 @@ export class StoreController {
     return this.storeService.createStore(req.user.userId, dto);
   }
 
-  @Get('/list')
+  @Get()
   async getUserStores(@Req() req) {
     return this.storeService.getUserStores(req.user.userId);
   }
 
-  @Get('/list/:id')
+  @Get('/:id')
   async getStoreDetail(@Req() req, @Param('id') id: string) {
     return this.storeService.getStoreDetail(id, req.user.userId);
   }

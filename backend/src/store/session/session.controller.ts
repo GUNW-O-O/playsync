@@ -5,8 +5,9 @@ import { RolesGuard } from 'src/auth/guard/roles.guard';
 import { Role } from '@prisma/client';
 import { Roles } from 'src/auth/decorator/roles.decorator';
 import { CreateTournamentDto, UpdateTournamentDto } from 'shared/dto/tournament.dto';
+import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
 @Controller('store/sessions')
 export class SessionController {

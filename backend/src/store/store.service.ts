@@ -9,7 +9,7 @@ export class StoreService {
   // 가맹점주 아이디의 가맹점들 조회
   async getUserStores(id: string) {
     return await this.prisma.store.findMany({
-      where: { id },
+      where: { ownerId : id },
     });
   }
 
