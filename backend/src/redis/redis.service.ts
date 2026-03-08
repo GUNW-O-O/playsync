@@ -30,6 +30,7 @@ export class RedisService {
     await this.redis.del(lockKey);
   }
 
+  // 테이블 초기생성
   async setSeatBitmap(tournamentId: string, tableId: string) {
     const key = `tournament:seat:${tournamentId}`;
     const field = `table:${tableId}`;
@@ -51,8 +52,25 @@ export class RedisService {
 
     await this.redis.hset(key, field, bitmapArray.join(""));
     await this.redis.expire(key, 86400);
+    return bitmapArray.join("");
   }
 
+  async getTournamentTables(tournamentId: string) {
+    const key = `tournament:seat:${tournamentId}`;
+    const raw = await this.redis.hgetall(key);
+    // 필드에서 table: 제외후 테이블아이디와 비트맵 boolean배열만들어 리턴
+    return Object.entries(raw).map(([field, bitmap]) => {
+      const tableId = field.replace('table:', '');
+      const seatStatus = bitmap.split('').map((bit) => bit === '1');
+      return { tableId, seatStatus };
+    });
+  }
+
+  async getTableSeatStatus(tournamentId: string, tableId: string) {
+    const key = `tournament:seat:${tournamentId}`;
+    const bitmap = await this.redis.hget(key, `table:${tableId}`);
+    return bitmap ? bitmap.split('').map((bit) => bit === '1') : [];
+  }
   // 초기 생성 대회정보
   async setTournamentMeta(id: string, dashboard: Dashboard, blindField: BlindField) {
     const key = this.getInfoKey(id);

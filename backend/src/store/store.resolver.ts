@@ -48,7 +48,6 @@ export class StoreResolver {
 
   // Store 타입 내의 tournaments 필드에 대한 별도 처리기
   @ResolveField(() => [AdminTournament])
-  @UseGuards(JwtAuthGuard)
   async tournaments(@Parent() store: Store) {
     return await this.sessionService.getStoreAllSessions(store.id);
   }

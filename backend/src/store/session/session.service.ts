@@ -74,14 +74,34 @@ export class SessionService {
       });
       const updatedSession = await tx.tournament.findUnique({
         where: { id: session.id },
-        include : {
-          tables : true,
+        include: {
+          tables: true,
         }
       });
       return updatedSession;
     });
     if (!sessionInfo) throw new Error('세션 생성 실패');
     await this.redis.setSeatBitmap(sessionInfo.id, sessionInfo.tables[0].id);
+  }
+
+  async createTable(tournamentId: string) {
+    const tournament = await this.prismaService.tournament.findUnique({
+      where: { id: tournamentId },
+      include: { tables: true, dealerSession: true },
+    });
+    if (!tournament) throw new Error('세션 없음');
+    const tableCount = tournament.tables.length;
+    const newTable = await this.prismaService.$transaction(async (tx) => {
+      const table = await tx.table.create({
+        data: {
+          tableOrder: tableCount + 1,
+          tournamentId: tournament.id,
+          dealerId: tournament.dealerSession!.id,
+        }
+      });
+      return table;
+    });
+    await this.redis.setSeatBitmap(tournamentId, newTable.id);
   }
 
   // 세션 시작

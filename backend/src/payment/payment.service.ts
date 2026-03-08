@@ -101,11 +101,19 @@ export class PaymentService {
         }
         return { success: true, updatedState };
       });
-      await this.redisService.setUserContext(dto.tournamentId, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
       if(result.updatedState) {
         await this.redisService.saveSnapShot(dto.tableId, result.updatedState);
+        await this.redisService.setUserContext(dto.tournamentId, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
+        await this.redisService.joinPlayer(dto.tournamentId, session.entryFee);
+        const table = await this.redisService.updateSeatBitmap(dto.tournamentId, dto.tableId, dto.seatIndex, true);
+        let cnt = 0;
+        table.split('').forEach(idx => {
+          if(idx === '1') cnt++;
+        })
+        if(cnt === 7) {
+          await this.session.createTable(dto.tournamentId);
+        }
       }
-      await this.redisService.joinPlayer(dto.tournamentId, session.entryFee);
       return result.updatedState;
     } finally {
       await this.redisService.releaseSeatLock(dto);

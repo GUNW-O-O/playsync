@@ -190,6 +190,7 @@ export class PlaysyncService {
     // 토너먼트 캐시에서 생존자 -1
     if (updated.success) {
       const activePlayerCount = await this.redis.eliminatedPlayer(user.tournamentId);
+      await this.redis.updateSeatBitmap(user.tournamentId, user.tableId, user.seatIndex, false);
       if (activePlayerCount === 1) {
         await this.tournamentFinished(user.tournamentId, userId)
       }
