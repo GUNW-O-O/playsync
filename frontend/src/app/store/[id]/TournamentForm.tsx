@@ -5,7 +5,7 @@ import { createTournamentWithBlinds } from './action';
 
 export default function TournamentForm({ storeId }: { storeId: string }) {
   // 1. 상태 분리
-  const [blindName, setBlindName] = useState('기본 블라인드 설정');
+  const [blindName, setBlindName] = useState('기본 블라인드');
   const [structure, setStructure] = useState([
     { lv: 1, sb: 100, ante: false, duration: 5 }
   ]);

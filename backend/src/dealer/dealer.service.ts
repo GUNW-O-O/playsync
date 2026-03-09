@@ -1,5 +1,5 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import { Queue } from 'bullmq';
@@ -33,6 +33,9 @@ export class DealerService {
       if (!tournament || tournament.dealerOtp !== dto.otp) {
         throw new UnauthorizedException('인증 정보가 올바르지 않습니다.');
       }
+      if(!tournament.dealerSession) {
+        throw new ConflictException('예기치 못한 오류가 발생했습니다.')
+      }
 
 
       if (tournament.status === 'ONGOING') {
@@ -55,7 +58,7 @@ export class DealerService {
         }
       }
       const payload = {
-        sub: tournament.dealerSession?.id,
+        sub: tournament.dealerSession.id,
         tournamentId: dto.tournamentId,
         tableId: dto.tableId,
         role: Role.DEALER,
