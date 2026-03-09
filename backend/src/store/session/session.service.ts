@@ -15,12 +15,12 @@ export class SessionService {
   async getGameSession(id: string) {
     return await this.prismaService.tournament.findUnique({
       where: { id },
-      include: {
-        tables: true,
-        tornamentParticipations: true,
-        tablePlayers: true,
-        blindStructure: true,
-      }
+      // include: {
+      //   tables: true,
+      //   tornamentParticipations: true,
+      //   tablePlayers: true,
+      //   blindStructure: true,
+      // }
     });
   }
 
@@ -32,6 +32,19 @@ export class SessionService {
     return tables;
   }
 
+  // 전체 토너먼트 정보
+  async getAllSessions() {
+    return await this.prismaService.tournament.findMany({
+      where: {
+        status: {
+          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
+        }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
   // 해당 매장의 전체 토너먼트 정보
   async getStoreAllSessions(storeId: string) {
     return await this.prismaService.tournament.findMany({

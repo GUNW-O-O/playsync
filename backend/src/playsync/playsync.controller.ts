@@ -1,4 +1,6 @@
 import { Controller } from '@nestjs/common';
 
 @Controller('playsync')
-export class PlaysyncController {}
+export class PlaysyncController {
+  
+}

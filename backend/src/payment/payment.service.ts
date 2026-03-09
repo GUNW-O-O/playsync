@@ -16,25 +16,32 @@ export class PaymentService {
 
   ) { };
 
-  async getAvailableSessions(storeId: string) {
-    const sessions = await this.session.getStoreAllSessions(storeId);
-    return sessions.filter(session => session.status === TournamentStatus.ONGOING
-      || session.status === TournamentStatus.PENDING
-    );
+  // 상점별 기능 개발시
+  // async getAvailableSessions(storeId: string) {
+  //   const sessions = await this.session.getStoreAllSessions(storeId);
+  //   return sessions.filter(session => session.status === TournamentStatus.ONGOING
+  //     || session.status === TournamentStatus.PENDING
+  //   );
+  // }
+  
+  async getAvailableSessions() {
+    return await this.session.getAllSessions();
   }
 
-  async getAvailableSeats(sessionId: string) {
-    return await this.session.getDetailSeatStatus(sessionId);
+  async getTournamentInfo(tournamentId: string) {
+    const tournament = await this.session.getGameSession(tournamentId);
+    const seatStatus = await this.redisService.getTournamentTables(tournamentId);
+    return { tournament, seatStatus };
   }
 
   // 세션 참여
-  async joinSessionWithSeat(dto: PayMentDto) {
-    const isLocked = await this.redisService.acquireSeatLock(dto);
+  async joinSessionWithSeat(dto: PayMentDto, userId: string) {
+    const isLocked = await this.redisService.acquireSeatLock(dto, userId);
     if (!isLocked) {
       throw new ConflictException('이미 다른 유저가 선택 중인 좌석입니다.');
     }
     try {
-      const user = await this.user.findByUUID(dto.userId);
+      const user = await this.user.findByUUID(userId);
       if (!user) {
         throw new ConflictException('잘못된 유저 ID 입니다.')
       }
@@ -56,10 +63,10 @@ export class PaymentService {
           }
         });
         if (exsitingPlayer) throw new Error('이미 플레이어가 존재하는 좌석입니다');
-        await this.user.paymentPoint(tx, dto.userId, dto.tableId, session.name, session.entryFee);
+        await this.user.paymentPoint(tx, userId, dto.tournamentId, session.name, session.entryFee);
         await tx.tournamentParticipation.create({
           data: {
-            userId: dto.userId,
+            userId: userId,
             tournamentId: dto.tournamentId,
           }
         });
@@ -68,7 +75,7 @@ export class PaymentService {
             tournamentId: session.id,
             nickname: user.nickname,
             tableId: dto.tableId,
-            userId: dto.userId,
+            userId: userId,
             seatPosition: dto.seatIndex,
             currentStack: session.startStack,
           }
@@ -97,13 +104,13 @@ export class PaymentService {
               button: false,
               totalContributed: 0,
             };
+            await this.redisService.saveSnapShot(dto.tableId, updatedState);
           }
         }
         return { success: true, updatedState };
       });
-      if(result.updatedState) {
-        await this.redisService.saveSnapShot(dto.tableId, result.updatedState);
-        await this.redisService.setUserContext(dto.tournamentId, dto.userId, dto.tableId, dto.seatIndex, 'ACTIVE');
+      if(result.success) {
+        await this.redisService.setUserContext(dto.tournamentId, userId, dto.tableId, dto.seatIndex, 'ACTIVE');
         await this.redisService.joinPlayer(dto.tournamentId, session.entryFee);
         const table = await this.redisService.updateSeatBitmap(dto.tournamentId, dto.tableId, dto.seatIndex, true);
         let cnt = 0;

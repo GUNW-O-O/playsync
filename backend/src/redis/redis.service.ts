@@ -14,12 +14,12 @@ export class RedisService {
     return `tournament:${id}:info`;
   }
   // 좌석 선점 시도
-  async acquireSeatLock(dto: PayMentDto): Promise<boolean> {
+  async acquireSeatLock(dto: PayMentDto, userId: string): Promise<boolean> {
     const lockKey = `lock:seat:${dto.tableId}:${dto.seatIndex}`;
     const expireTime = 10;
 
     // NX: 키가 없을 때만 세팅, EX: 만료 시간 설정
-    const result = await this.redis.set(lockKey, dto.userId, 'EX', expireTime, 'NX');
+    const result = await this.redis.set(lockKey, userId, 'EX', expireTime, 'NX');
 
     return result === 'OK'; // 성공하면 true, 이미 누가 점유 중이면 false
   }
@@ -150,7 +150,6 @@ export class RedisService {
       .hincrby(key, 'activePlayer', 1)
       .hincrby(key, 'totalBuyinAmount', entryFee)
       .exec();
-    return await this.redis.hincrby(key, 'totalPlayer', 1);
   }
 
   async getTournamentBlind(id: string): Promise<BlindField | null> {

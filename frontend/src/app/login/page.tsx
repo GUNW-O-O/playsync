@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { handleLogin } from '../auth/action';
+import Link from 'next/link';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
@@ -23,6 +24,10 @@ export default function LoginPage() {
         <button type="submit" className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
           로그인
         </button>
+        <Link
+        href={`/register`} className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+        회원가입
+        </Link>
       </form>
     </div>
   );
