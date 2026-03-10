@@ -6,15 +6,15 @@ import PokerTable from './PokerTable';
 import { TableState } from '@/app/types/game';
 import ActionPanel from './ActionPanel';
 
-export default function GameClient({ tableId, initialData }: { tableId: string, initialData?: TableState }) {
+export default function GameClient({ tableId, initialData, seatIdx }: { tableId: string, initialData?: TableState, seatIdx?: number }) {
   const socketRef = useRef<WebSocket | null>(null);
   const [gameState, setGameState] = useState<TableState | null>(initialData || null);
-  const [mySeatIndex, setMySeatIndex] = useState<number>(0); // 실제 구현시 토큰/API로 본인 인덱스 확인
+  const [mySeatIndex, setMySeatIndex] = useState<number | null>(seatIdx ?? null); // 실제 구현시 토큰/API로 본인 인덱스 확인
   const [isDealer, setIsDealer] = useState<boolean>(false); // 딜러 세션 여부
 
   useEffect(() => {
     Cookies.get('dealerToken') ? setIsDealer(true) : setIsDealer(false);
-  
+
     const token = Cookies.get('dealerToken') || Cookies.get('accessToken');
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}?tableId=${tableId}&token=${token}`;
     const ws = new WebSocket(wsUrl);
@@ -47,11 +47,11 @@ export default function GameClient({ tableId, initialData }: { tableId: string, 
 
       {/* 1/3 영역: 컨트롤 패널 (유저/딜러 분기) */}
       <div className="flex-[1] flex flex-col bg-slate-900 rounded-3xl border border-slate-800 p-4 overflow-y-auto">
-        <ActionPanel 
-          state={gameState} 
-          mySeatIndex={mySeatIndex} 
-          isDealer={isDealer} 
-          onAction={sendAction} 
+        <ActionPanel
+          state={gameState}
+          mySeatIndex={mySeatIndex}
+          isDealer={isDealer}
+          onAction={sendAction}
         />
       </div>
     </div>

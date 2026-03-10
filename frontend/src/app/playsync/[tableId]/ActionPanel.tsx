@@ -27,14 +27,14 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
   return (
     <div className="flex flex-col gap-4">
       <h2 className="text-indigo-400 font-black text-sm uppercase">Player Actions</h2>
-      
+
       {/* BB 슬라이더 */}
       <div className="bg-black/40 p-3 rounded-xl space-y-3 border border-white/5">
         <div className="flex justify-between text-xs font-bold">
           <span className="text-slate-400">RAISE AMOUNT</span>
           <span className="text-yellow-400">{raiseVal.toLocaleString()}</span>
         </div>
-        <input 
+        <input
           type="range" min={state.currentBet + bigBlind} max={myPlayer?.stack} step={bigBlind}
           value={raiseVal} onChange={(e) => setRaiseVal(Number(e.target.value))}
           className="w-full h-2 bg-slate-700 rounded-lg appearance-none accent-indigo-500"
@@ -75,7 +75,7 @@ function DealerSection({ state, onAction }: any) {
       <h2 className="text-amber-500 font-black text-sm uppercase">Dealer Console</h2>
       <div className="grid grid-cols-3 gap-1">
         {state.players.map((p: any, i: number) => p && (
-          <button 
+          <button
             key={p.id} onClick={() => setWinners(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id])}
             className={`p-2 rounded text-[10px] border font-bold ${winners.includes(p.id) ? 'bg-yellow-500 border-white text-black' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
           >
@@ -83,18 +83,24 @@ function DealerSection({ state, onAction }: any) {
           </button>
         ))}
       </div>
-      <button 
+      {state.phase === 5 ? (
+      <button
         onClick={() => { onAction('RESOLVE_WINNERS', { winnerUserIds: winners }); setWinners([]); }}
         className="bg-amber-600 h-14 rounded-xl font-black text-white"
       >
         CONFIRM WINNERS ({winners.length})
       </button>
-      <button 
-        onClick={() => { onAction('START_PRE_FLOP')}}
-        className="bg-amber-600 h-14 rounded-xl font-black text-white"
-      >
-        START_PRE_FLOP
-      </button>
+      ) : (
+        <></>
+      )}
+      {state.phase === 0 || state.phase === 6 ? (
+        <button
+          onClick={() => { onAction('START_PRE_FLOP') }}
+          className="bg-emerald-600 h-14 rounded-xl font-black text-white"
+        >
+          START_PRE_FLOP
+        </button>
+      ) : (<></>)}
       <div className="grid grid-cols-2 gap-2 mt-4">
         <button onClick={() => onAction('DEALER_FOLD')} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>
         <button onClick={() => onAction('DEALER_KICK')} className="bg-black py-3 rounded-lg text-[10px] font-bold">KICK</button>
