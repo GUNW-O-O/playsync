@@ -14,10 +14,11 @@ async function getInitialGameData(tableId: string) {
 export default async function GamePage({ params }: { params: Promise<{ tableId: string }> }) {
   const { tableId } = await params;
   const initialData = await getInitialGameData(tableId);
+  console.log(initialData)
 
   return (
     <main className="h-screen bg-slate-900 overflow-hidden">
-      {initialData.statusCode === 200 ? (
+      {initialData ? (
         <GameClient
           tableId={tableId} 
           initialData={initialData} 

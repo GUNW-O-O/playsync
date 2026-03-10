@@ -11,6 +11,7 @@ import { RedisService } from './redis.service';
         return new Redis({
           host: 'localhost',
           port: 6379,
+          password: process.env.REDIS_PASSWORD,
         });
       },
     },

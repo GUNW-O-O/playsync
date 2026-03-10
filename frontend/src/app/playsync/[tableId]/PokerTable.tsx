@@ -46,7 +46,7 @@ export default function PokerTable({ state }: { state: TableState | null }) {
               
               {player ? (
                 <>
-                  <span className="text-[10px] text-slate-500 font-bold mb-1">{i}번석</span>
+                  <span className="text-[10px] text-slate-500 font-bold mb-1">{i + 1}번석</span>
                   <span className="text-xs font-black truncate w-full text-center px-1">{player.nickname}</span>
                   <span className="text-yellow-400 text-sm font-bold">{player.stack.toLocaleString()}</span>
                   {player.bet > 0 && (

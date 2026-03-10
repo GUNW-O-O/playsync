@@ -217,10 +217,10 @@ export class SessionService {
     });
 
     // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
-    const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
+    const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(t => {
 
       const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
-      const btnIdx = t.tablePlayers[randomCnt - 1].seatPosition;
+      const btnIdx = t.tablePlayers[randomCnt].seatPosition;
 
       const initialState: TableState = {
         phase: GamePhase.WAITING,
