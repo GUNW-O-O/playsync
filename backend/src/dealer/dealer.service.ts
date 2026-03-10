@@ -57,13 +57,15 @@ export class DealerService {
           });
         }
       }
-      const payload = {
+      const accessToken = {
         sub: tournament.dealerSession.id,
         tournamentId: dto.tournamentId,
         tableId: dto.tableId,
         role: Role.DEALER,
       }
-      return this.jwtService.sign(payload);
+      return {
+      accessToken: this.jwtService.sign(accessToken)
+      }
     });
   }
 

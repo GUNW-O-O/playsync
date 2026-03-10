@@ -11,7 +11,7 @@ export class DealerController {
 
   @Get()
   async getAvailableSessions() {
-    return await this.sessionService.getAllSessions();
+    return await this.sessionService.getGameSessionWithTables();
   }
 
 

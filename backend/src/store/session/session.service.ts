@@ -12,15 +12,30 @@ export class SessionService {
     private redis: RedisService,
   ) { };
 
+  async getGameSessionWithTables() {
+    return await this.prismaService.tournament.findMany({
+      where: {
+        status: {
+          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
+        }
+      },
+      include: {
+        tables: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
   async getGameSession(id: string) {
     return await this.prismaService.tournament.findUnique({
       where: { id },
-      // include: {
-      //   tables: true,
-      //   tornamentParticipations: true,
-      //   tablePlayers: true,
-      //   blindStructure: true,
-      // }
+      include: {
+        tables: true,
+        tornamentParticipations: true,
+        tablePlayers: true,
+        blindStructure: true,
+      }
     });
   }
 
@@ -59,10 +74,10 @@ export class SessionService {
 
   async createBlind(blindStructure: CreateBlindStructureDto) {
     const blind = await this.prismaService.blindStructure.create({
-      data : {
-        name : blindStructure.name,
-        structure : blindStructure.structure as any,
-        storeId : blindStructure.storeId
+      data: {
+        name: blindStructure.name,
+        structure: blindStructure.structure as any,
+        storeId: blindStructure.storeId
       }
     })
     return blind;
@@ -72,7 +87,7 @@ export class SessionService {
     let blindId = "blind";
     if ((dto.blindId === undefined || dto.blindId === null) && blindStructure) {
       const newBlind = await this.prismaService.blindStructure.create({
-        data : {
+        data: {
           name: blindStructure.name,
           structure: blindStructure.structure as any,
           storeId: blindStructure.storeId

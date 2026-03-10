@@ -28,7 +28,6 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
 
       <h2 className="text-xl font-bold mb-4">좌석 선택</h2>
       <div className="space-y-8">
-        {/* 1. seatStatus가 배열이므로 바로 .map을 돌립니다. */}
         {data.seatStatus.map((tableObj: any) => {
           // 각 테이블 객체에서 필요한 정보를 꺼냅니다.
           const { tableId, seatStatus: seats } = tableObj;
@@ -39,7 +38,6 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
                 TABLE: {tableId.slice(0, 8)} {/* ID가 너무 기니 앞부분만 출력 */}
               </div>
 
-              {/* 2. 실제 좌석(seats) 배열을 .map으로 돌립니다. */}
               <div className="grid grid-cols-5 gap-4 relative">
                 {seats.map((isOccupied: boolean, idx: number) => (
                   <button

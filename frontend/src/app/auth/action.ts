@@ -54,5 +54,5 @@ export async function handleLogin(formData: FormData) {
     maxAge: 60 * 60 * 24, // 1일 (NestJS JWT 만료시간과 맞추는 것 권장)
   });
 
-  redirect('/user'); // 로그인 성공 시 대시보드로 이동
+  redirect('/'); // 로그인 성공 시 대시보드로 이동
 }

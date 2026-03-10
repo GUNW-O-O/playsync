@@ -218,7 +218,7 @@ export class RedisService {
   // Table 상태 저장
   async saveSnapShot(tableId: string, table: TableState) {
     await this.redis.set(`table:state:${tableId}`, JSON.stringify(table));
-    this.redis.expire(`table:state:${tableId}`, 43200);
+    this.redis.expire(`table:state:${tableId}`, 86400);
   }
 
   // Table 가져오기
@@ -231,7 +231,7 @@ export class RedisService {
   // 유저의 위치,정보 저장
   async setUserContext(tournamentId: string, userId: string, tableId: string, seatIndex: number, status: string) {
     await this.redis.set(`user:${userId}`, `${tournamentId}:${tableId}:${seatIndex}:${status}`);
-    this.redis.expire(`user:${userId}`, 43200);
+    this.redis.expire(`user:${userId}`, 86400);
   }
 
   // 유저 위치 정보 가져오기
