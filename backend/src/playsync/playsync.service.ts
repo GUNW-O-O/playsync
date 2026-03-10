@@ -104,6 +104,13 @@ export class PlaysyncService {
     }
   }
 
+  async findMyTable(userId: string) {
+    const player = await this.prisma.tablePlayer.findFirst({
+      where: { userId: userId }
+    });
+    if (!player) return null;
+    return player.tableId;
+  }
 
   async handleAction(dto: PlayerActionDto) {
     // Redis에서 상태 로드 및 엔진 초기화
@@ -185,7 +192,7 @@ export class PlaysyncService {
         where: { id: user.tournamentId },
         data: { activePlayers: { decrement: 1 } }
       });
-      return {success : true, updSession};
+      return { success: true, updSession };
     });
     // 토너먼트 캐시에서 생존자 -1
     if (updated.success) {
@@ -203,8 +210,8 @@ export class PlaysyncService {
     const session = await this.prisma.tournament.findUnique({
       where: { id: tournamentId },
     });
-    if(!session) throw new Error('세션 없음.');
-    if(!user) throw new Error('유저 없음.');
+    if (!session) throw new Error('세션 없음.');
+    if (!user) throw new Error('유저 없음.');
     await this.prisma.$transaction(async (tx) => {
       await tx.tournamentParticipation.update({
         where: {
