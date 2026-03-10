@@ -7,6 +7,7 @@ export default function HomePage() {
     { name: '🃏 딜러 (테이블/OTP 인증)', href: '/dealer', color: 'bg-red-600' },
     { name: '🏆 토너먼트 (대회 생성/목록)', href: '/tournaments', color: 'bg-yellow-600' },
     { name: '🏪 상점 (매장 관리/설정)', href: '/store', color: 'bg-green-600' },
+    { name: 'PLAYSYNC', href: '/playsync', color: 'bg-emerald-600' },
   ];
 
   return (

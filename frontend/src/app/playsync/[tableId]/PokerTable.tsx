@@ -17,7 +17,7 @@ export default function PokerTable({ state }: { state: TableState | null }) {
     <div className="w-full h-full relative flex items-center justify-center p-10">
       {/* 물리적 테이블 형태 */}
       <div className="w-[90%] h-[75%] bg-emerald-900 rounded-[200px] border-[12px] border-amber-900 flex flex-col items-center justify-center shadow-2xl relative">
-        <div className="text-white/10 text-6xl font-black italic select-none">PLAY SYNC</div>
+        <div className="text-white/10 text-4xl font-black italic select-none">PLAY SYNC</div>
         
         {state && (
           <div className="mt-4 flex flex-col items-center">
@@ -57,7 +57,7 @@ export default function PokerTable({ state }: { state: TableState | null }) {
                   {player.hasFolded && <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center text-xs font-bold text-red-500">FOLDED</div>}
                 </>
               ) : (
-                <span className="text-white/10 font-bold text-xs italic">{i}번 EMPTY</span>
+                <span className="text-white/10 font-bold text-xs italic">{i + 1}번 EMPTY</span>
               )}
             </div>
           </div>

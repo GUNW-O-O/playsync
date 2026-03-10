@@ -12,11 +12,17 @@ export class PlaysyncController {
   @Get()
   async findMyTable(@Req() req) {
     const userId = req.user.userId;
+    const isDealer = req.user.role === 'DEALER';
+    const tableId = req.user.tableId;
+    if(isDealer) {
+      return await this.playsyncService.findDealerTable(tableId);
+    }
     return await this.playsyncService.findMyTables(userId);
   }
 
   @Get(':id')
-  async joinTable(@Param('id') id: string) {
+  async joinTable(@Param('id') id: string, @Req() req) {
+    
     return await this.playsyncService.joinTable(id);
   }
 

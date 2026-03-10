@@ -280,7 +280,7 @@ export class SessionService {
           tournamentId: id,
         },
       });
-    })
+    });
   }
 
   // 세션 수정

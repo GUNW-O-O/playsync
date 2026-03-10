@@ -29,6 +29,13 @@ export class PlaysyncService {
     if (!players) return null;
     return players;
   }
+  async findDealerTable(tableId: string) {
+    const table = await this.prisma.table.findMany({
+      where: { id: tableId }
+    });
+    if (!table) return null;
+    return table;
+  }
 
   async handleAction(userId: string, tableId: string, dto: PlayerActionDto) {
     // Redis에서 상태 로드 및 엔진 초기화

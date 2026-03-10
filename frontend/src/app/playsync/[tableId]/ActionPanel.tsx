@@ -61,6 +61,14 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
 // 딜러 섹션 (승자 선택 포함)
 function DealerSection({ state, onAction }: any) {
   const [winners, setWinners] = useState<string[]>([]);
+  const [phase, setPhase] = useState(state.phase);
+  const resolveWinner = async () => {
+  }
+  const startPreFlop = async () => {
+  }
+  const dealerAction = async () => {
+  }
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -71,7 +79,7 @@ function DealerSection({ state, onAction }: any) {
             key={p.id} onClick={() => setWinners(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id])}
             className={`p-2 rounded text-[10px] border font-bold ${winners.includes(p.id) ? 'bg-yellow-500 border-white text-black' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
           >
-            {i}번 {p.nickname}
+            {i + 1}번 {p.nickname}
           </button>
         ))}
       </div>
@@ -80,6 +88,12 @@ function DealerSection({ state, onAction }: any) {
         className="bg-amber-600 h-14 rounded-xl font-black text-white"
       >
         CONFIRM WINNERS ({winners.length})
+      </button>
+      <button 
+        onClick={() => { onAction('START_PRE_FLOP')}}
+        className="bg-amber-600 h-14 rounded-xl font-black text-white"
+      >
+        START_PRE_FLOP
       </button>
       <div className="grid grid-cols-2 gap-2 mt-4">
         <button onClick={() => onAction('DEALER_FOLD')} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>

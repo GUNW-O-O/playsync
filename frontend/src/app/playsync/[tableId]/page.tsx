@@ -3,7 +3,12 @@ import { cookies } from 'next/headers';
 import GameClient from './GameClient';
 
 async function getInitialGameData(tableId: string) {
-  const token = (await cookies()).get('accessToken')?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get('dealerToken')?.value || cookieStore.get('accessToken')?.value;
+
+  if (!token) {
+    console.error("인증 토큰이 없습니다.");
+  }
   const res = await fetch(`${process.env.BACKEND_URL}/playsync/${tableId}`, {
     headers: { 'Authorization': `Bearer ${token}` },
     cache: 'no-store'

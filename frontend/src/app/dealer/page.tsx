@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Cookies from 'js-cookie';
 
 export default function DealerAuthPage() {
   const [tournaments, setTournaments] = useState([]);
@@ -42,10 +43,14 @@ export default function DealerAuthPage() {
 
     if (res.ok) {
       const { accessToken } = await res.json();
-      // 딜러 전용 토큰을 저장 (플레이어 토큰과 별개로 관리하거나 교체)
-      localStorage.setItem('dealerToken', accessToken);
-      router.push(`/`);
+      Cookies.set('dealerToken', accessToken, { 
+        expires: 1,
+        path: '/',
+        sameSite: 'lax',
+        // secure: true
+      });
       alert(`인증 성공 tableId: ${selectedTable}`);
+      router.push(`/playsync`);
       // router.push(`/playsync/${selectedTable}`);
     } else {
       alert('인증 실패: OTP를 확인하세요.');

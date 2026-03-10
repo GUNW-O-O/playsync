@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Cookies from 'js-cookie';
 import PokerTable from './PokerTable';
 import { TableState } from '@/app/types/game';
 import ActionPanel from './ActionPanel';
@@ -12,7 +13,9 @@ export default function GameClient({ tableId, initialData }: { tableId: string, 
   const [isDealer, setIsDealer] = useState<boolean>(false); // 딜러 세션 여부
 
   useEffect(() => {
-    const token = localStorage.getItem('accessToken') || localStorage.getItem('dealerToken');
+    Cookies.get('dealerToken') ? setIsDealer(true) : setIsDealer(false);
+  
+    const token = Cookies.get('dealerToken') || Cookies.get('accessToken');
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}?tableId=${tableId}&token=${token}`;
     const ws = new WebSocket(wsUrl);
     socketRef.current = ws;
