@@ -3,8 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
-import { BlindField, Dashboard } from 'shared/types/tournamentMeta';
-import { getCurrentBlindLevel, parseBlindStructure } from 'shared/util/util';
 import { TableEngine } from 'src/game-engine/table-engine';
 import { ActionType, GamePhase, TableState } from 'src/game-engine/types';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -18,111 +16,31 @@ export class PlaysyncService {
     private readonly prisma: PrismaService,
   ) { }
 
-  async initializeGame(id: string) {
-    // 1. DB에서 세션과 모든 테이블/플레이어 정보를 한 번에 가져옴
-    const game = await this.prisma.tournament.findUnique({
-      where: { id },
-      include: {
-        tables: {
-          include: {
-            tablePlayers: true,
-          }
-        },
-        blindStructure: true,
-      }
-    });
-
-    const startedAt = new Date();
-    if (!game) throw new Error("세션 없음");
-    const blindStructure = parseBlindStructure(game.blindStructure.structure);
-    const blindInfo = getCurrentBlindLevel(blindStructure, startedAt.getTime());
-
-    const dashboard: Dashboard = {
-      isRegistrationOpen: game.isRegistrationOpen,
-      totalPlayer: game.totalPlayers,
-      activePlayer: game.activePlayers,
-      totalBuyinAmount: game.entryFee * game.totalPlayers,
-      rebuyUntil: game.rebuyUntil,
-      avgStack: game.avgStack
-    }
-    const blindField: BlindField = {
-      isBreak: false,
-      startedAt: startedAt.getTime(),
-      currentBlindLv: blindInfo.currentIndex,
-      nextLevelAt: blindInfo.nextLevelAt,
-      serverTime: startedAt.getTime(),
-      blindStructure: blindStructure,
-    }
-
-    if (game.totalPlayers < 3) {
-      throw new Error('시작하기에 충분한 인원이 아닙니다.')
-    }
-    await this.prisma.tournament.update({
-      where: { id },
-      data: { startedAt: startedAt }
-    });
-
-    // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
-    const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
-
-      const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
-      const btnIdx = t.tablePlayers[randomCnt - 1].seatPosition;
-
-      const initialState: TableState = {
-        phase: GamePhase.WAITING,
-        players: Array(9).fill(null),
-        pot: 0,
-        currentBet: 0,
-        buttonUser: btnIdx,
-        currentTurnSeatIndex: -1,
-        lastRaiserIndex: -1,
-        sidePots: [],
-        ante: false,
-      };
-
-      // 플레이어 배치
-      t.tablePlayers.forEach(tp => {
-        initialState.players[tp.seatPosition] = {
-          id: tp.id,
-          tableId: t.id,
-          nickname: tp.nickname!,
-          seatIndex: tp.seatPosition,
-          stack: tp.currentStack,
-          bet: 0,
-          hasFolded: false,
-          isAllIn: false,
-          button: false,
-          totalContributed: 0,
-        };
-      });
-
-      return { tableId: t.id, state: initialState };
-    });
-    if (tableStates.length > 0) {
-      await this.redis.setTournamentMeta(id, dashboard, blindField);
-      await this.redis.saveInitialTableSnapshots(tableStates as any);
-    }
+  async joinTable(tableId: string) {
+    const tableState = await this.redis.getSnapShot(tableId);
+    if (!tableState) throw new Error(`Table ${tableId} not found`);
+    return tableState;
   }
 
-  async findMyTable(userId: string) {
-    const player = await this.prisma.tablePlayer.findFirst({
+  async findMyTables(userId: string) {
+    const players = await this.prisma.tablePlayer.findMany({
       where: { userId: userId }
     });
-    if (!player) return null;
-    return player.tableId;
+    if (!players) return null;
+    return players;
   }
 
-  async handleAction(dto: PlayerActionDto) {
+  async handleAction(userId: string, tableId: string, dto: PlayerActionDto) {
     // Redis에서 상태 로드 및 엔진 초기화
-    const state = await this.redis.getSnapShot(dto.tableId);
-    if (!state) throw new Error(`Table ${dto.tableId} not found`);
+    const state = await this.redis.getSnapShot(tableId);
+    if (!state) throw new Error(`Table ${tableId} not found`);
 
-    const userState = await this.redis.getUserContext(dto.tableId);
+    const userState = await this.redis.getUserContext(tableId);
 
     const engine = new TableEngine(state);
 
     // 엔진 액션 실행
-    const playerIdx = state.players.findIndex(p => p?.id === dto.userId);
+    const playerIdx = state.players.findIndex(p => p?.id === userId);
     if (userState?.status.endsWith('KICKED')) {
       await engine.act(playerIdx, ActionType.FOLD);
     }
@@ -135,12 +53,12 @@ export class PlaysyncService {
         await this.timeoutQueue.add(
           'player-timeout',
           {
-            tableId: dto.tableId,
+            tableId: tableId,
             userId: nextPlayer.id
           },
           {
             delay: 30000,
-            jobId: dto.tableId, // 테이블별 고유 ID로 덮어쓰기/관리
+            jobId: tableId, // 테이블별 고유 ID로 덮어쓰기/관리
             removeOnComplete: true
           }
         );
@@ -149,7 +67,7 @@ export class PlaysyncService {
     }
 
     // Redis 저장
-    await this.redis.saveSnapShot(dto.tableId, state);
+    await this.redis.saveSnapShot(tableId, state);
     return state;
   }
 

@@ -4,7 +4,7 @@ import GameClient from './GameClient';
 
 async function getInitialGameData(tableId: string) {
   const token = (await cookies()).get('accessToken')?.value;
-  const res = await fetch(`${process.env.BACKEND_URL}/tournaments/info/${tableId}`, {
+  const res = await fetch(`${process.env.BACKEND_URL}/playsync/${tableId}`, {
     headers: { 'Authorization': `Bearer ${token}` },
     cache: 'no-store'
   });
@@ -17,11 +17,14 @@ export default async function GamePage({ params }: { params: Promise<{ tableId: 
 
   return (
     <main className="h-screen bg-slate-900 overflow-hidden">
-      {/* 클라이언트 컴포넌트에 초기 데이터를 Props로 전달 */}
-      <GameClient
-        tableId={tableId} 
-        initialData={initialData} 
-      />
+      {initialData.statusCode === 200 ? (
+        <GameClient
+          tableId={tableId} 
+          initialData={initialData} 
+        />
+      ) : (
+        <p>아직 게임이 시작되지 않았습니다.</p>
+      )}
     </main>
   );
 }

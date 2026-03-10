@@ -7,13 +7,13 @@ import { RedisService } from 'src/redis/redis.service';
 @Processor('player-timeout')
 export class TimeoutProcessor extends WorkerHost {
   constructor(private readonly playsyncService: PlaysyncService,
-              private readonly redis: RedisService, 
+    private readonly redis: RedisService,
   ) {
     super();
   }
 
-  async process(job: Job<{ sessionId:string, tableId: string; userId: string }>) {
-    const { sessionId, tableId, userId } = job.data;
+  async process(job: Job<{ tableId: string; userId: string }>) {
+    const {tableId, userId } = job.data;
 
     // 타임아웃 시점에 해당 유저가 여전히 그 테이블의 그 턴인지 다시 확인
     const state = await this.redis.getSnapShot(tableId);
@@ -25,12 +25,14 @@ export class TimeoutProcessor extends WorkerHost {
     if (currentPlayer?.id !== userId) return;
 
     // 자동 TIME_OUT 액션 실행
-    await this.playsyncService.handleAction({
-      tableId,
+    await this.playsyncService.handleAction(
       userId,
-      action: ActionType.TIME_OUT, // table-engine.ts에서 체크/폴드 처리 [cite: 17]
-      amount: 0
-    });
+      tableId,
+      {
+        action: ActionType.TIME_OUT,
+        amount: 0
+      }
+    );
 
   }
 }

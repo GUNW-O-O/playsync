@@ -2,6 +2,9 @@ import { Injectable } from '@nestjs/common';
 import { TournamentStatus } from '@prisma/client';
 import { CreateBlindStructureDto } from 'shared/dto/blind-structure.dto';
 import { CreateTournamentDto, UpdateTournamentDto } from 'shared/dto/tournament.dto';
+import { BlindField, Dashboard } from 'shared/types/tournamentMeta';
+import { getCurrentBlindLevel, parseBlindStructure } from 'shared/util/util';
+import { GamePhase, TableState } from 'src/game-engine/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 
@@ -157,6 +160,7 @@ export class SessionService {
 
   // 세션 시작
   async startSession(id: string) {
+    await this.initializeGame(id);
     return await this.prismaService.tournament.update({
       where: {
         id: id,
@@ -166,6 +170,92 @@ export class SessionService {
         startedAt: new Date(),
       },
     });
+  }
+
+  private async initializeGame(id: string) {
+    // 1. DB에서 세션과 모든 테이블/플레이어 정보를 한 번에 가져옴
+    const game = await this.prismaService.tournament.findUnique({
+      where: { id },
+      include: {
+        tables: {
+          include: {
+            tablePlayers: true,
+          }
+        },
+        blindStructure: true,
+      }
+    });
+
+    const startedAt = new Date();
+    if (!game) throw new Error("세션 없음");
+    const blindStructure = parseBlindStructure(game.blindStructure.structure);
+    const blindInfo = getCurrentBlindLevel(blindStructure, startedAt.getTime());
+
+    const dashboard: Dashboard = {
+      isRegistrationOpen: game.isRegistrationOpen,
+      totalPlayer: game.totalPlayers,
+      activePlayer: game.activePlayers,
+      totalBuyinAmount: game.entryFee * game.totalPlayers,
+      rebuyUntil: game.rebuyUntil,
+      avgStack: game.avgStack
+    }
+    const blindField: BlindField = {
+      isBreak: false,
+      startedAt: startedAt.getTime(),
+      currentBlindLv: blindInfo.currentIndex,
+      nextLevelAt: blindInfo.nextLevelAt,
+      serverTime: startedAt.getTime(),
+      blindStructure: blindStructure,
+    }
+
+    if (game.totalPlayers < 2) {
+      throw new Error('시작하기에 충분한 인원이 아닙니다.')
+    }
+    await this.prismaService.tournament.update({
+      where: { id },
+      data: { startedAt: startedAt }
+    });
+
+    // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
+    const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(async (t) => {
+
+      const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
+      const btnIdx = t.tablePlayers[randomCnt - 1].seatPosition;
+
+      const initialState: TableState = {
+        phase: GamePhase.WAITING,
+        players: Array(9).fill(null),
+        pot: 0,
+        currentBet: 0,
+        buttonUser: btnIdx,
+        currentTurnSeatIndex: -1,
+        lastRaiserIndex: -1,
+        sidePots: [],
+        ante: false,
+      };
+
+      // 플레이어 배치
+      t.tablePlayers.forEach(tp => {
+        initialState.players[tp.seatPosition] = {
+          id: tp.id,
+          tableId: t.id,
+          nickname: tp.nickname!,
+          seatIndex: tp.seatPosition,
+          stack: tp.currentStack,
+          bet: 0,
+          hasFolded: false,
+          isAllIn: false,
+          button: false,
+          totalContributed: 0,
+        };
+      });
+
+      return { tableId: t.id, state: initialState };
+    });
+    if (tableStates.length > 0) {
+      await this.redis.setTournamentMeta(id, dashboard, blindField);
+      await this.redis.saveInitialTableSnapshots(tableStates as any);
+    }
   }
 
   // 세션 완료

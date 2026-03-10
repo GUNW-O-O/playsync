@@ -5,7 +5,7 @@ import Link from 'next/link';
 async function getMyJoinedTables() {
   const token = (await cookies()).get('accessToken')?.value;
   // 백엔드: GET /tournaments/my-tables (본인이 속한 TablePlayer 목록 반환)
-  const res = await fetch(`${process.env.BACKEND_URL}/tournaments/my-tables`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/playsync`, {
     headers: { 'Authorization': `Bearer ${token}` },
     cache: 'no-store'
   });
@@ -15,6 +15,7 @@ async function getMyJoinedTables() {
 
 export default async function PlaySyncMain() {
   const tables = await getMyJoinedTables();
+  console.log(tables)
 
   return (
     <div className="p-8 max-w-2xl mx-auto">
@@ -28,8 +29,8 @@ export default async function PlaySyncMain() {
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-bold text-lg">{item.tournamentName}</p>
-                <p className="text-sm text-gray-500">{item.tableOrder}번 테이블 - {item.seatIndex + 1}번석</p>
+                <p className="font-bold text-lg">토너먼트 이름</p>
+                <p className="text-sm text-gray-500">테이블번호 번 테이블 - {item.seatPosition + 1}번석</p>
               </div>
               <span className="text-indigo-600 font-bold">입장하기 →</span>
             </div>

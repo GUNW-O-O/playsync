@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import { PlaysyncService } from './playsync.service';
+import { PlaysyncController } from './playsync.controller';
 
 @Module({
   imports: [
@@ -8,6 +9,7 @@ import { PlaysyncService } from './playsync.service';
       name : 'player-timeout'
     }),
   ],
+  controllers: [PlaysyncController],
   providers: [PlaysyncService],
   exports: [PlaysyncService],
 })
