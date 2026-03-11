@@ -13,8 +13,6 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
     { bottom: '5%', right: '30%' },                               // 8
   ];
   const mySeat = mySeatIndex ?? null;
-  console.log('여기서 내자리', mySeat)
-
 
   return (
     <div className="w-full h-full relative flex items-center justify-center p-10">

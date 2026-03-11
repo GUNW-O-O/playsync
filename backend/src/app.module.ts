@@ -12,6 +12,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { StoreModule } from './store/store.module';
+import { WsGateway } from './ws/ws.gateway';
 
 @Module({
   imports:[
@@ -39,5 +40,6 @@ import { StoreModule } from './store/store.module';
     PaymentModule,
     StoreModule
   ],
+  providers: [WsGateway],
 })
 export class AppModule {}
