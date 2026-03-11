@@ -26,5 +26,5 @@ export async function joinTournament(tournamentId: string, tableId: string, seat
   }
 
   // 결제/참가 성공 시 나의 대회 현황 페이지 등으로 이동
-  redirect(`/tournaments`);
+  redirect(`/playsync`);
 }

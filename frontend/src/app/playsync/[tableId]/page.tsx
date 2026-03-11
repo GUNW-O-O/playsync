@@ -18,7 +18,6 @@ async function getInitialGameData(tableId: string) {
 export default async function GamePage({ params }: { params: Promise<{ tableId: string }> }) {
   const { tableId } = await params;
   const initialData = await getInitialGameData(tableId);
-  console.log(initialData)
 
   return (
     <main className="h-screen bg-slate-900 overflow-hidden">
@@ -26,7 +25,7 @@ export default async function GamePage({ params }: { params: Promise<{ tableId: 
         <GameClient
           tableId={tableId} 
           initialData={initialData.tableState}
-          seatIndex = {initialData.seatIdx}
+          seatIndex = {initialData.seatIndex}
         />
       ) : (
         <p>아직 게임이 시작되지 않았습니다.</p>

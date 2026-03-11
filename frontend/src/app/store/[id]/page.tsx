@@ -13,7 +13,6 @@ async function getStoreData(id: string) {
     next: { revalidate: 0 },
   });
 
-  console.log('store data :', res)
   if (!res.ok) return null;
   return res.json();
 }

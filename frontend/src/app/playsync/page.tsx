@@ -20,6 +20,17 @@ async function getMyJoinedTables() {
 
 export default async function PlaySyncMain() {
   const tables = await getMyJoinedTables();
+  if (!tables || tables.length === 0) {
+    
+    return (
+      <div className="p-8 max-w-2xl mx-auto">
+        <h1 className="text-2xl font-bold mb-6">내 게임 목록</h1>
+        <div className="space-y-4">
+          <p>아직 토너먼트가 준비되지 않았습니다.</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-8 max-w-2xl mx-auto">

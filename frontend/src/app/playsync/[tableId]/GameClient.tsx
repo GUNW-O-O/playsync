@@ -16,19 +16,21 @@ export default function GameClient({ tableId, initialData, seatIndex }: { tableI
     const token = Cookies.get('dealerToken') || Cookies.get('accessToken');
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}?tableId=${tableId}&token=${token}`;
     const ws = new WebSocket(wsUrl);
+    if (Cookies.get('dealerToken') && seatIndex === -1) {
+      setIsDealer(true);
+    } else {
+      setIsDealer(false);
+      setMySeatIndex(seatIndex);
+    }
     socketRef.current = ws;
-    
     ws.onmessage = (event) => {
       const { event: serverEvent, data } = JSON.parse(event.data);
       if (serverEvent === 'renderGame') setGameState(data);
     };
-    
+
     return () => ws.close();
   }, [tableId]);
-
-  if(Cookies.get('dealerToken') && seatIndex === -1 ) {
-    setIsDealer(true);
-  }
+  
 
   const sendAction = (type: string, payload: any = {}) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -44,7 +46,10 @@ export default function GameClient({ tableId, initialData, seatIndex }: { tableI
     <div className="flex h-screen w-screen bg-slate-950 text-white overflow-hidden p-2 gap-2">
       {/* 3/2 영역: 포커 테이블 (고정 레이아웃) */}
       <div className="flex-[2] relative bg-slate-900 rounded-3xl border border-slate-800 shadow-inner overflow-hidden">
-        <PokerTable state={gameState} />
+        <PokerTable
+          state={gameState}
+          mySeatIndex={mySeatIndex}
+        />
       </div>
 
       {/* 1/3 영역: 컨트롤 패널 (유저/딜러 분기) */}

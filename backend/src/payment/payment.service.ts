@@ -30,7 +30,20 @@ export class PaymentService {
 
   async getTournamentInfo(tournamentId: string) {
     const tournament = await this.session.getGameSession(tournamentId);
-    const seatStatus = await this.redisService.getTournamentTables(tournamentId);
+    let seatStatus = await this.redisService.getTournamentTables(tournamentId);
+    if(!seatStatus || seatStatus.length === 0) {
+      const session = await this.prismaService.tournament.findUnique({
+        where: { id: tournamentId },
+        include : {
+          tables : true
+        }
+      });
+      if (!session || !session.tables) throw new ConflictException('잘못된 세션 ID 입니다.');
+      if (session.totalPlayers === 0) {
+        await this.redisService.setSeatBitmap(tournamentId, session.tables[0].id);
+      }
+      // TODO : 다중 테이블 기능 개발시 유저자리 매핑하는로직
+    }
     return { tournament, seatStatus };
   }
 

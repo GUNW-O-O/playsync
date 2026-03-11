@@ -17,11 +17,11 @@ export class PlaysyncService {
   ) { }
 
   async joinTable(tableId: string, userId?: string) {
-    console.log('서비스 user: ',userId)
     const tableState = await this.redis.getSnapShot(tableId);
     if (!tableState) throw new Error(`Table ${tableId} not found`);
     if(userId !== null && userId !== undefined) {
       const seatIndex = tableState.players.findIndex(p => p?.id === userId);
+      console.log(seatIndex)
       return {tableState, seatIndex};
     } else {
       return {tableState, seatIndex: -1}

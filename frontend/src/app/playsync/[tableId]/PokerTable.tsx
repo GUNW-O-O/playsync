@@ -1,6 +1,6 @@
 import { TableState } from "@/app/types/game";
 
-export default function PokerTable({ state }: { state: TableState | null }) {
+export default function PokerTable({ state, mySeatIndex }: { state: TableState | null, mySeatIndex: number | null}) {
   const seatStyles = [
     { bottom: '5%', left: '50%', transform: 'translateX(-50%)' }, // 0
     { bottom: '15%', left: '15%' },                               // 1
@@ -12,6 +12,9 @@ export default function PokerTable({ state }: { state: TableState | null }) {
     { bottom: '15%', right: '15%' },                              // 7
     { bottom: '5%', right: '30%' },                               // 8
   ];
+  const mySeat = mySeatIndex ?? null;
+  console.log('여기서 내자리', mySeat)
+
 
   return (
     <div className="w-full h-full relative flex items-center justify-center p-10">
@@ -46,8 +49,8 @@ export default function PokerTable({ state }: { state: TableState | null }) {
               
               {player ? (
                 <>
-                  <span className="text-[10px] text-slate-500 font-bold mb-1">{i + 1}번석</span>
-                  <span className="text-xs font-black truncate w-full text-center px-1">{player.nickname}</span>
+                  <span className="text-[12px] text-blue-300 font-bold mb-1">{(i === mySeat) ? `Me ${i + 1}번` : `${i + 1}번`}</span>
+                  <span className={`text-xs font-black ${(i === mySeat) ? 'text-red-500' : ''} truncate w-full text-center px-1`}>{player.nickname}</span>
                   <span className="text-yellow-400 text-sm font-bold">{player.stack.toLocaleString()}</span>
                   {player.bet > 0 && (
                     <div className="absolute -top-8 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">

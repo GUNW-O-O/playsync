@@ -24,7 +24,6 @@ export default function DealerAuthPage() {
         setLoading(false);
       });
   }, []);
-  console.log(tournaments)
 
   const handleAuth = async () => {
     if (!selectedTournament) {
@@ -50,8 +49,7 @@ export default function DealerAuthPage() {
         // secure: true
       });
       alert(`인증 성공 tableId: ${selectedTable}`);
-      router.push(`/playsync`);
-      // router.push(`/playsync/${selectedTable}`);
+      router.push(`/playsync/${selectedTable}`);
     } else {
       alert('인증 실패: OTP를 확인하세요.');
     }

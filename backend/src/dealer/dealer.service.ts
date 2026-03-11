@@ -33,7 +33,7 @@ export class DealerService {
       if (!tournament || tournament.dealerOtp !== dto.otp) {
         throw new UnauthorizedException('인증 정보가 올바르지 않습니다.');
       }
-      if(!tournament.dealerSession) {
+      if (!tournament.dealerSession) {
         throw new ConflictException('예기치 못한 오류가 발생했습니다.')
       }
 
@@ -64,7 +64,7 @@ export class DealerService {
         role: Role.DEALER,
       }
       return {
-      accessToken: this.jwtService.sign(accessToken)
+        accessToken: this.jwtService.sign(accessToken)
       }
     });
   }
@@ -72,6 +72,7 @@ export class DealerService {
   async startPreFlop(tournamentId: string, tableId: string) {
     const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
+    if (!blind) throw new Error('블라인드 정보가 없습니다.');
     if (!state || state.phase !== GamePhase.WAITING) {
       return;
     }
@@ -85,6 +86,7 @@ export class DealerService {
 
   async handleDealerAction(tournamentId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
     const state = await this.redis.getSnapShot(tableId);
+    if (!state) throw new Error('예기치 못한 오류가 발생했습니다.')
     const engine = new TableEngine(state);
     const targetIdx = state.players.findIndex(p => p?.id === targetUserId);
 
@@ -122,9 +124,9 @@ export class DealerService {
     return state;
   }
 
-  async resolveWinners(tableId: string, tournamentId:string, winnerUserIds: string[]) {
+  async resolveWinners(tableId: string, tournamentId: string, winnerUserIds: string[]) {
     const state = await this.redis.getSnapShot(tableId);
-
+    if (!state) throw new Error('예기치 못한 오류가 발생했습니다.')
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
     const engine = new TableEngine(state, async (playerId: string) => {
       return await this.playsync.processRebuy(tournamentId, playerId);

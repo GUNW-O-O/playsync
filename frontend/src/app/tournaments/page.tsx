@@ -21,10 +21,10 @@ export default async function TournamentsPage() {
                 {s.type}
               </span>
               <h2 className="text-lg text-gray-800 font-bold mt-2">{s.name}</h2>
-              <p className="text-sm text-gray-500 mt-1">{s.store?.storeName}</p>
+              <p className="text-sm text-gray-500 mt-1">{`${s.activePlayers} / ${s.totalPlayers} 명 참여중`}</p>
               <div className="mt-4 flex justify-between items-center border-t pt-3">
                 <span className="font-bold text-orange-600">{s.entryFee.toLocaleString()}원</span>
-                <span className="text-xs text-gray-400">레지 마감 전</span>
+                <span className="text-xs text-gray-400">참여 가능</span>
               </div>
             </div>
           </Link>
