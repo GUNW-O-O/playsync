@@ -96,10 +96,9 @@ export class DealerService {
       await engine.act(targetIdx, ActionType.DEALER_FOLD);
     } else if (type === 'KICK') {
       await engine.act(targetIdx, ActionType.DEALER_KICK);
-      const user = await this.redis.getUserContext(targetUserId);
-      await this.redis.setUserContext(user.tournamentId, targetUserId, tableId, user.seatIndex, 'KICKED');
+      await this.redis.setUserContext(tournamentId, targetUserId, tableId, targetIdx, 'KICKED');
       await this.prisma.tournamentParticipation.update({
-        where: { tournamentId_userId: { tournamentId: user.tournamentId, userId: targetUserId } },
+        where: { tournamentId_userId: { tournamentId: tournamentId, userId: targetUserId } },
         data: { status: 'ELIMINATED' }
       });
       await this.prisma.tournament.update({
@@ -123,18 +122,17 @@ export class DealerService {
     return state;
   }
 
-  async resolveWinners(tableId: string, winnerUserIds: string[]) {
+  async resolveWinners(tableId: string, tournamentId:string, winnerUserIds: string[]) {
     const state = await this.redis.getSnapShot(tableId);
 
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
     const engine = new TableEngine(state, async (playerId: string) => {
-      const user = await this.redis.getUserContext(playerId);
-      return await this.playsync.processRebuy(user.tournamentId, playerId);
+      return await this.playsync.processRebuy(tournamentId, playerId);
     });
     engine.resolveWinner(winnerUserIds);
     for (const player of engine.state.players) {
       if (player && player.stack <= 0) {
-        await this.playsync.eliminatePlayer(player.id);
+        await this.playsync.eliminatePlayer(tournamentId, player.id);
       }
     }
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장

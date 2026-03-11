@@ -16,13 +16,13 @@ export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: 
 
 // 플레이어 섹션 (BB 기준 슬라이더 포함)
 function PlayerSection({ state, mySeatIndex, onAction }: any) {
-  const bigBlind = 1000; // 실제로는 state에서 가져오거나 상수로 관리
+  const bigBlind = 100; // 실제로는 state에서 가져오거나 상수로 관리
   const [raiseVal, setRaiseVal] = useState(bigBlind * 2);
   const myPlayer = state.players[mySeatIndex];
 
-  if (state.currentTurnSeatIndex !== mySeatIndex) {
-    return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">상대방 턴 대기 중...</div>;
-  }
+  // if (state.currentTurnSeatIndex !== mySeatIndex) {
+  //   return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">상대방 턴 대기 중...</div>;
+  // }
 
   return (
     <div className="flex flex-col gap-4">
@@ -41,7 +41,7 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
         />
         <div className="grid grid-cols-4 gap-1">
           {[2, 3, 5, 10].map(bb => (
-            <button key={bb} onClick={() => setRaiseVal(bigBlind * bb)} className="bg-slate-800 py-1 rounded text-[10px] font-bold hover:bg-indigo-600">
+            <button key={bb} onClick={() => setRaiseVal(Math.min(bb * bigBlind, myPlayer?.stack))} className="bg-slate-800 py-1 rounded text-[10px] font-bold hover:bg-indigo-600">
               {bb}BB
             </button>
           ))}
@@ -49,10 +49,12 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
+        <div></div>
+        <button onClick={() => onAction('RAISE', { amount: myPlayer?.stack })} className="h-14 bg-indigo-700 rounded-xl font-black">ALLIN</button>
+        <button onClick={() => onAction('RAISE', { amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE</button>
+        <button onClick={() => onAction('CALL', { amount: state.currentBet })} className="h-14 bg-blue-700 rounded-xl font-black">CALL</button>
         <button onClick={() => onAction('FOLD')} className="h-14 bg-red-700 rounded-xl font-black">FOLD</button>
         <button onClick={() => onAction('CHECK')} className="h-14 bg-slate-700 rounded-xl font-black text-xs">CHECK</button>
-        <button onClick={() => onAction('CALL', { amount: state.currentBet })} className="h-14 bg-blue-700 rounded-xl font-black">CALL</button>
-        <button onClick={() => onAction('RAISE', { amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE</button>
       </div>
     </div>
   );

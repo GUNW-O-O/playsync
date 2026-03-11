@@ -216,45 +216,23 @@ export class SessionService {
       data: { startedAt: startedAt }
     });
 
-    // 2. 각 테이블별로 독립적인 상태 생성 및 Redis 적재
-    const tableStates = game.tables.filter(t => t.tablePlayers.length > 0).map(t => {
+    const tableStates = game.tables
+      .filter(t => t.tablePlayers.length > 0)
+      .map(async t => {
+        const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
+        const btnIdx = t.tablePlayers[randomCnt].seatPosition;
 
-      const randomCnt = Math.floor(Math.random() * t.tablePlayers.length);
-      const btnIdx = t.tablePlayers[randomCnt].seatPosition;
-
-      const initialState: TableState = {
-        phase: GamePhase.WAITING,
-        players: Array(9).fill(null),
-        pot: 0,
-        currentBet: 0,
-        buttonUser: btnIdx,
-        currentTurnSeatIndex: -1,
-        lastRaiserIndex: -1,
-        sidePots: [],
-        ante: false,
-      };
-
-      // 플레이어 배치
-      t.tablePlayers.forEach(tp => {
-        initialState.players[tp.seatPosition] = {
-          id: tp.id,
-          tableId: t.id,
-          nickname: tp.nickname!,
-          seatIndex: tp.seatPosition,
-          stack: tp.currentStack,
-          bet: 0,
-          hasFolded: false,
-          isAllIn: false,
-          button: false,
-          totalContributed: 0,
-        };
+        let initialState = await this.redis.getSnapShot(t.id);
+        if (!initialState) return null;
+        initialState!.buttonUser = btnIdx;
+        return { tableId: t.id, state: initialState };
       });
+    const resolvedTableStates = await Promise.all(tableStates);
+    const validTableStates = resolvedTableStates.filter(state => state !== null);
 
-      return { tableId: t.id, state: initialState };
-    });
-    if (tableStates.length > 0) {
+    if (validTableStates.length > 0) {
       await this.redis.setTournamentMeta(id, dashboard, blindField);
-      await this.redis.saveInitialTableSnapshots(tableStates as any);
+      await this.redis.saveInitialTableSnapshots(validTableStates as any);
     }
   }
 

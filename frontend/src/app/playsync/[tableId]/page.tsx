@@ -1,4 +1,3 @@
-// src/app/playsync/[tableId]/page.tsx (Server Component)
 import { cookies } from 'next/headers';
 import GameClient from './GameClient';
 
@@ -26,7 +25,8 @@ export default async function GamePage({ params }: { params: Promise<{ tableId: 
       {initialData ? (
         <GameClient
           tableId={tableId} 
-          initialData={initialData} 
+          initialData={initialData.tableState}
+          seatIndex = {initialData.seatIdx}
         />
       ) : (
         <p>아직 게임이 시작되지 않았습니다.</p>

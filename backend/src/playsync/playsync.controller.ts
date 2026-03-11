@@ -22,8 +22,9 @@ export class PlaysyncController {
 
   @Get(':id')
   async joinTable(@Param('id') id: string, @Req() req) {
-    
-    return await this.playsyncService.joinTable(id);
+    const userId = req.user.userId;
+    console.log('컨트롤러 user: ',userId)
+    return await this.playsyncService.joinTable(id, userId);
   }
 
   @Post(':id')

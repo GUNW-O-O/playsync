@@ -16,10 +16,16 @@ export class PlaysyncService {
     private readonly prisma: PrismaService,
   ) { }
 
-  async joinTable(tableId: string) {
+  async joinTable(tableId: string, userId?: string) {
+    console.log('서비스 user: ',userId)
     const tableState = await this.redis.getSnapShot(tableId);
     if (!tableState) throw new Error(`Table ${tableId} not found`);
-    return tableState;
+    if(userId !== null && userId !== undefined) {
+      const seatIndex = tableState.players.findIndex(p => p?.id === userId);
+      return {tableState, seatIndex};
+    } else {
+      return {tableState, seatIndex: -1}
+    }
   }
 
   async findMyTables(userId: string) {
@@ -42,7 +48,7 @@ export class PlaysyncService {
     const state = await this.redis.getSnapShot(tableId);
     if (!state) throw new Error(`Table ${tableId} not found`);
 
-    const userState = await this.redis.getUserContext(tableId);
+    const userState = await this.redis.getUserContext(state.tournamentId, userId);
 
     const engine = new TableEngine(state);
 
@@ -89,11 +95,12 @@ export class PlaysyncService {
   }
 
   // 탈락
-  public async eliminatePlayer(userId: string) {
-    const user = await this.redis.getUserContext(userId);
+  public async eliminatePlayer(tournamentId: string, userId: string) {
+    const user = await this.redis.getUserContext(tournamentId, userId);
+    if (!user) throw new Error('유저 없음.');
     const updated = await this.prisma.$transaction(async (tx) => {
       const session = await tx.tournament.findUnique({
-        where: { id: user.tournamentId },
+        where: { id: tournamentId },
       });
       if (!session) throw new Error('세션 없음');
 
@@ -102,7 +109,7 @@ export class PlaysyncService {
       await tx.tournamentParticipation.update({
         where: {
           tournamentId_userId:
-            { tournamentId: user.tournamentId, userId }
+            { tournamentId: tournamentId, userId }
         },
         data: {
           finalPlace: session.activePlayers,
@@ -114,24 +121,24 @@ export class PlaysyncService {
         where: { tableId_userId: { tableId: user.tableId, userId } },
       });
       const updSession = await tx.tournament.update({
-        where: { id: user.tournamentId },
+        where: { id: tournamentId },
         data: { activePlayers: { decrement: 1 } }
       });
       return { success: true, updSession };
     });
     // 토너먼트 캐시에서 생존자 -1
     if (updated.success) {
-      const activePlayerCount = await this.redis.eliminatedPlayer(user.tournamentId);
-      await this.redis.updateSeatBitmap(user.tournamentId, user.tableId, user.seatIndex, false);
+      const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId);
+      await this.redis.updateSeatBitmap(tournamentId, user.tableId, user.seatIndex, false);
       if (activePlayerCount === 1) {
-        await this.tournamentFinished(user.tournamentId, userId)
+        await this.tournamentFinished(tournamentId, userId)
       }
     }
   }
 
   // 최후 1인
   async tournamentFinished(tournamentId: string, userId: string) {
-    const user = await this.redis.getUserContext(userId);
+    const user = await this.redis.getUserContext(tournamentId, userId);
     const session = await this.prisma.tournament.findUnique({
       where: { id: tournamentId },
     });
@@ -160,8 +167,8 @@ export class PlaysyncService {
       const session = await tx.tournament.findUnique({
         where: { id: tournamentId },
       });
-      const userInfo = await this.redis.getUserContext(userId);
-      if (!session || !user || !tournamentInfo) throw new Error('세션 혹은 유저 없음.');
+      const userInfo = await this.redis.getUserContext(tournamentId, userId);
+      if (!session || !user || !tournamentInfo || !userInfo) throw new Error('세션 혹은 유저 없음.');
 
       const rebuyAmount = session.entryFee || 0;
       const rebuyStack = session.startStack;

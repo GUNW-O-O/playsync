@@ -96,6 +96,7 @@ export class RedisService {
     const blindField = await this.checkAndSyncBlindLevel(id);
 
     if (!raw || Object.keys(raw).length === 0) return null;
+    if (!blindField) return null;
 
     return {
       dashboard: {
@@ -106,7 +107,7 @@ export class RedisService {
         rebuyUntil: parseInt(raw.rebuyUntil || '0'),
         avgStack: parseInt(raw.avgStack || '0'),
       },
-      blindField : blindField,
+      blindField: blindField,
     };
   }
 
@@ -166,15 +167,15 @@ export class RedisService {
  * 토너먼트의 현재 블라인드 상태를 확인하고, 시간이 경과했다면 자동으로 업데이트합니다.
  * @returns 최신 블라인드 정보 (업데이트된 경우 반영됨)
  */
-  async checkAndSyncBlindLevel(tournamentId: string): Promise<BlindField> {
+  async checkAndSyncBlindLevel(tournamentId: string): Promise<BlindField | null> {
     const blind = await this.getTournamentBlind(tournamentId);
-    if (!blind) throw new Error('블라인드 정보 없음');
+    if (!blind) return null;
 
     const now = Date.now();
     // 최적화: 아직 다음 레벨 시간이 되지 않았다면 현재 상태 그대로 반환
     // (이미 휴식 중이라면 blind.isBreak가 true인 상태로 반환됨)
     if (blind.nextLevelAt && now < blind.nextLevelAt) {
-      return {...blind, serverTime: now};
+      return { ...blind, serverTime: now };
     }
     // 시간 경과 시에만 상세 계산 수행
     const calculated = getCurrentBlindLevel(blind.blindStructure, blind.startedAt);
@@ -222,23 +223,24 @@ export class RedisService {
   }
 
   // Table 가져오기
-  async getSnapShot(tableId: string): Promise<TableState> {
+  async getSnapShot(tableId: string): Promise<TableState | null> {
     const rawState = await this.redis.get(`table:state:${tableId}`);
-    if (!rawState) throw new Error(`Table ${tableId} not found`);
+    if (!rawState) return null;
     return JSON.parse(rawState);
   }
 
   // 유저의 위치,정보 저장
   async setUserContext(tournamentId: string, userId: string, tableId: string, seatIndex: number, status: string) {
-    await this.redis.set(`user:${userId}`, `${tournamentId}:${tableId}:${seatIndex}:${status}`);
+    const key = `tournament:${tournamentId}:user`;
+    await this.redis.hset(key, userId, JSON.stringify({ tableId: tableId, seatIndex: seatIndex, status: status }));
     this.redis.expire(`user:${userId}`, 86400);
   }
 
   // 유저 위치 정보 가져오기
-  async getUserContext(userId: string): Promise<UserInfo> {
-    const raw = await this.redis.get(`user:${userId}`);
-    if (!raw) throw new Error(`User ${userId} not found`);
-    return JSON.parse(raw);
+  async getUserContext(tournamentId: string, userId: string): Promise<UserInfo | null> {
+    const key = `tournament:${tournamentId}:user`;
+    const raw = await this.redis.hget(key, userId);
+    return raw ? JSON.parse(raw) : null;
   }
 
 

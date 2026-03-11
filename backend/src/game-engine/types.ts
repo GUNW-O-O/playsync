@@ -46,6 +46,7 @@ export interface TableState {
   currentBet: number;
   ante: boolean;
   actionDeadline?: number;
+  tournamentId: string;
 }
 
 export interface SidePot {

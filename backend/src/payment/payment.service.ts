@@ -1,7 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { TournamentStatus } from '@prisma/client';
 import { PayMentDto } from 'shared/dto/payment.dto';
-import { TableState } from 'src/game-engine/types';
+import { GamePhase, TablePlayer } from 'src/game-engine/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 import { SessionService } from 'src/store/session/session.service';
@@ -23,7 +23,7 @@ export class PaymentService {
   //     || session.status === TournamentStatus.PENDING
   //   );
   // }
-  
+
   async getAvailableSessions() {
     return await this.session.getAllSessions();
   }
@@ -88,36 +88,49 @@ export class PaymentService {
             totalBuyinAmount: { increment: session.entryFee },
           }
         });
-        let updatedState: TableState | null = null;
-        if (session.status === TournamentStatus.ONGOING) {
-          updatedState = await this.redisService.getSnapShot(dto.tableId);
-          if (updatedState) {
-            updatedState.players[dto.seatIndex] = {
-              id: user.id,
-              tableId: dto.tableId,
-              nickname: user.nickname!,
-              seatIndex: dto.seatIndex,
-              stack: session.startStack,
-              bet: 0,
-              hasFolded: true,
-              isAllIn: false,
-              button: false,
-              totalContributed: 0,
-            };
-            await this.redisService.saveSnapShot(dto.tableId, updatedState);
-          }
+        let updatedState = await this.redisService.getSnapShot(dto.tableId);
+        const isOngoing = session.status === TournamentStatus.ONGOING;
+
+        const newPlayer: TablePlayer = {
+          id: userId,
+          tableId: dto.tableId,
+          nickname: user.nickname!,
+          seatIndex: dto.seatIndex,
+          stack: session.startStack,
+          bet: 0,
+          hasFolded: isOngoing, // 게임 중이면 true, 대기 중이면 false
+          isAllIn: false,
+          button: false,
+          totalContributed: 0,
+        };
+
+        if (!updatedState) {
+          updatedState = {
+            phase: GamePhase.WAITING,
+            players: Array(9).fill(null),
+            pot: 0,
+            currentBet: 0,
+            buttonUser: 0,
+            currentTurnSeatIndex: -1,
+            lastRaiserIndex: -1,
+            sidePots: [],
+            ante: false,
+            tournamentId: session.id,
+          };
         }
+        updatedState.players[dto.seatIndex] = newPlayer;
+        await this.redisService.saveSnapShot(dto.tableId, updatedState);
         return { success: true, updatedState };
       });
-      if(result.success) {
+      if (result.success) {
         await this.redisService.setUserContext(dto.tournamentId, userId, dto.tableId, dto.seatIndex, 'ACTIVE');
         await this.redisService.joinPlayer(dto.tournamentId, session.entryFee);
         const table = await this.redisService.updateSeatBitmap(dto.tournamentId, dto.tableId, dto.seatIndex, true);
         let cnt = 0;
         table.split('').forEach(idx => {
-          if(idx === '1') cnt++;
+          if (idx === '1') cnt++;
         })
-        if(cnt === 7) {
+        if (cnt === 7) {
           await this.session.createTable(dto.tournamentId);
         }
       }
