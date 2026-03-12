@@ -13,6 +13,7 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
     { bottom: '5%', right: '30%' },                               // 8
   ];
   const mySeat = mySeatIndex ?? null;
+  const phase = ['WAITING','PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
 
   return (
     <div className="w-full h-full relative flex items-center justify-center p-10">
@@ -25,7 +26,7 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
             <div className="bg-black/40 px-6 py-2 rounded-full text-2xl font-bold text-yellow-400 border border-yellow-600/30">
               POT: {state.pot.toLocaleString()}
             </div>
-            <div className="text-white/40 text-sm mt-2 font-bold uppercase tracking-widest">{state.phase}</div>
+            <div className="text-white/40 text-sm mt-2 font-bold uppercase tracking-widest">{phase[state.phase]}</div>
           </div>
         )}
       </div>

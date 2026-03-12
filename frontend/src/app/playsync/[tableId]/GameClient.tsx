@@ -1,22 +1,20 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Cookies from 'js-cookie';
 import PokerTable from './PokerTable';
 import { TableState } from '@/app/types/game';
 import ActionPanel from './ActionPanel';
 
-export default function GameClient({ tableId, initialData, seatIndex }: { tableId: string, initialData?: TableState, seatIndex: number }) {
+export default function GameClient({ tableId, initialData, seatIndex, token, initIsDealer }: { tableId: string, initialData?: TableState, seatIndex: number, token: string, initIsDealer: boolean }) {
   const socketRef = useRef<WebSocket | null>(null);
   const [gameState, setGameState] = useState<TableState | null>(initialData || null);
   const [mySeatIndex, setMySeatIndex] = useState<number | null>(seatIndex ?? null);
-  const [isDealer, setIsDealer] = useState<boolean>(false); // 딜러 세션 여부
+  const [isDealer, setIsDealer] = useState<boolean>(initIsDealer || false); // 딜러 세션 여부
 
   useEffect(() => {
-    const token = Cookies.get('dealerToken') || Cookies.get('accessToken');
-    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL}?tableId=${tableId}&token=${token}`;
+    const wsUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL?.replace('http', 'ws')}/playsync?tableId=${tableId}&token=${token}`;
     const ws = new WebSocket(wsUrl);
-    if (Cookies.get('dealerToken') && seatIndex === -1) {
+    if (seatIndex === -1) {
       setIsDealer(true);
     } else {
       setIsDealer(false);
@@ -30,15 +28,23 @@ export default function GameClient({ tableId, initialData, seatIndex }: { tableI
 
     return () => ws.close();
   }, [tableId]);
-  
 
-  const sendAction = (type: string, payload: any = {}) => {
+
+  const sendAction = (type: 'PLAYER_ACTION' | 'DEALER_ACTION', payload: any = {}) => {
     if (socketRef.current?.readyState === WebSocket.OPEN) {
-      const token = Cookies.get('accessToken') || Cookies.get('dealerToken');
-      socketRef.current.send(JSON.stringify({
-        event: type,
-        data: { ...payload, token, tableId }
-      }));
+      const message = {
+        event: type, // 백엔드 @SubscribeMessage와 매칭
+        data: {
+          ...payload,      // action, amount, winnerUserIds 등이 담김
+          token,           // 검증용 토큰
+          tableId          // 대상 테이블 ID
+        }
+      };
+
+      console.log(`[WS Send] ${type}:`, message.data); // 디버깅용
+      socketRef.current.send(JSON.stringify(message));
+    } else {
+      console.error("웹소켓 연결이 열려있지 않습니다.");
     }
   };
 

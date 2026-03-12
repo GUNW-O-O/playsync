@@ -1,3 +1,4 @@
+import { ActionType } from "@/app/types/game";
 import { useState } from "react";
 
 export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: any) {
@@ -16,13 +17,20 @@ export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: 
 
 // 플레이어 섹션 (BB 기준 슬라이더 포함)
 function PlayerSection({ state, mySeatIndex, onAction }: any) {
-  const bigBlind = 100; // 실제로는 state에서 가져오거나 상수로 관리
+  const bigBlind = state.currentBet;
   const [raiseVal, setRaiseVal] = useState(bigBlind * 2);
   const myPlayer = state.players[mySeatIndex];
+  const currentInPot = myPlayer?.bet || 0;
+  const needsToCall = state.currentBet - currentInPot;
+  const canCheck = needsToCall === 0;
 
-  // if (state.currentTurnSeatIndex !== mySeatIndex) {
-  //   return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">상대방 턴 대기 중...</div>;
-  // }
+
+  if (state.currentTurnSeatIndex === -1) {
+    return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">게임시작 대기 중...</div>;
+  }
+  if (state.currentTurnSeatIndex !== mySeatIndex) {
+    return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">상대방 턴 대기 중...</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -50,11 +58,23 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
 
       <div className="grid grid-cols-2 gap-2">
         <div></div>
-        <button onClick={() => onAction('RAISE', { amount: myPlayer?.stack })} className="h-14 bg-indigo-700 rounded-xl font-black">ALLIN</button>
-        <button onClick={() => onAction('RAISE', { amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE</button>
-        <button onClick={() => onAction('CALL', { amount: state.currentBet })} className="h-14 bg-blue-700 rounded-xl font-black">CALL</button>
-        <button onClick={() => onAction('FOLD')} className="h-14 bg-red-700 rounded-xl font-black">FOLD</button>
-        <button onClick={() => onAction('CHECK')} className="h-14 bg-slate-700 rounded-xl font-black text-xs">CHECK</button>
+        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack })} className="h-14 bg-indigo-700 rounded-xl font-black">ALLIN</button>
+        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE</button>
+        <button
+          disabled={needsToCall === 0 && state.currentBet !== 0}
+          onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CALL, amount: state.currentBet })}
+          className="h-14 bg-blue-700 rounded-xl font-black"
+        >
+          {needsToCall > 0 ? `CALL (${needsToCall.toLocaleString()})` : 'CALL'}
+        </button>
+        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.FOLD })} className="h-14 bg-red-700 rounded-xl font-black">FOLD</button>
+        <button
+          disabled={!canCheck}
+          onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CHECK })}
+          className={`h-14 rounded-xl font-black ${canCheck ? 'bg-slate-700' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
+        >
+          CHECK
+        </button>
       </div>
     </div>
   );
@@ -64,13 +84,6 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
 function DealerSection({ state, onAction }: any) {
   const [winners, setWinners] = useState<string[]>([]);
   const [phase, setPhase] = useState(state.phase);
-  const resolveWinner = async () => {
-  }
-  const startPreFlop = async () => {
-  }
-  const dealerAction = async () => {
-  }
-
 
   return (
     <div className="flex flex-col gap-4">
@@ -85,27 +98,27 @@ function DealerSection({ state, onAction }: any) {
           </button>
         ))}
       </div>
-      {state.phase === 5 ? (
-      <button
-        onClick={() => { onAction('RESOLVE_WINNERS', { winnerUserIds: winners }); setWinners([]); }}
-        className="bg-amber-600 h-14 rounded-xl font-black text-white"
-      >
-        CONFIRM WINNERS ({winners.length})
-      </button>
+      {phase === 5 ? (
+        <button
+          onClick={() => { onAction('DEALER_ACTION', { action: 'RESOLVE_WINNERS', winnerUserIds: winners }); setWinners([]); }}
+          className="bg-amber-600 h-14 rounded-xl font-black text-white"
+        >
+          CONFIRM WINNERS ({winners.length})
+        </button>
       ) : (
         <></>
       )}
-      {state.phase === 0 || state.phase === 6 ? (
+      {phase === 0 ? (
         <button
-          onClick={() => { onAction('START_PRE_FLOP') }}
+          onClick={() => { onAction('DEALER_ACTION', { action: 'START_PRE_FLOP' }) }}
           className="bg-emerald-600 h-14 rounded-xl font-black text-white"
         >
           START_PRE_FLOP
         </button>
       ) : (<></>)}
       <div className="grid grid-cols-2 gap-2 mt-4">
-        <button onClick={() => onAction('DEALER_FOLD')} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>
-        <button onClick={() => onAction('DEALER_KICK')} className="bg-black py-3 rounded-lg text-[10px] font-bold">KICK</button>
+        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_FOLD, targetUserId: winners[0] }); setWinners([]); }} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>
+        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_KICK, targetUserId: winners[0] }); setWinners([]); }} className="bg-black py-3 rounded-lg text-[10px] font-bold">KICK</button>
       </div>
     </div>
   );
