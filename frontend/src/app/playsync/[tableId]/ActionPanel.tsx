@@ -26,6 +26,9 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
   const canCheck = needsToCall === 0;
 
 
+  if (state.phase === 5) {
+    return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">핸드결과 대기 중...</div>;
+  }
   if (state.currentTurnSeatIndex === -1) {
     return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">게임시작 대기 중...</div>;
   }
@@ -49,9 +52,12 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
           className="w-full h-2 bg-slate-700 rounded-lg appearance-none accent-indigo-500"
         />
         <div className="grid grid-cols-4 gap-1">
-          {[2, 3, 5, 10].map(bb => (
-            <button key={bb} onClick={() => setRaiseVal(Math.min(bb * bigBlind, myPlayer?.stack))} className="bg-slate-800 py-1 rounded text-[10px] font-bold hover:bg-indigo-600">
-              {bb}BB
+          <button onClick={() => setRaiseVal(Math.min(state.smallBlind * 4, myPlayer?.stack))} className="bg-slate-800 py-1 rounded text-[10px] font-bold hover:bg-indigo-600">
+            2BB
+          </button>
+          {[0.3, 0.5, 1].map(p => (
+            <button key={p} onClick={() => setRaiseVal(Math.min(Math.round(state.pot * p), myPlayer?.stack))} className="bg-slate-800 py-1 rounded text-[10px] font-bold hover:bg-indigo-600">
+              {p * 100}%
             </button>
           ))}
         </div>
@@ -90,7 +96,9 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
 // 딜러 섹션 (승자 선택 포함)
 function DealerSection({ state, onAction }: any) {
   const [winners, setWinners] = useState<string[]>([]);
-  const [phase, setPhase] = useState(state.phase);
+  const [phase, setPhase] = useState(0);
+
+  setPhase(state.phase);
 
   return (
     <div className="flex flex-col gap-4">
@@ -105,7 +113,7 @@ function DealerSection({ state, onAction }: any) {
           </button>
         ))}
       </div>
-      {phase === 5 ? (
+      {(phase === 5 || phase === 6) ? (
         <button
           onClick={() => { onAction('DEALER_ACTION', { action: 'RESOLVE_WINNERS', winnerUserIds: winners }); setWinners([]); }}
           className="bg-amber-600 h-14 rounded-xl font-black text-white"
@@ -124,8 +132,8 @@ function DealerSection({ state, onAction }: any) {
         </button>
       ) : (<></>)}
       <div className="grid grid-cols-2 gap-2 mt-4">
-        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_FOLD, targetUserId: winners[0] }); setWinners([]); }} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>
-        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_KICK, targetUserId: winners[0] }); setWinners([]); }} className="bg-black py-3 rounded-lg text-[10px] font-bold">KICK</button>
+        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_FOLD, targetUserIdx: winners[0] }); setWinners([]); }} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>
+        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_KICK, targetUserIdx: winners[0] }); setWinners([]); }} className="bg-black py-3 rounded-lg text-[10px] font-bold">KICK</button>
       </div>
     </div>
   );

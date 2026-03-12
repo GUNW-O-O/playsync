@@ -113,7 +113,7 @@ export class PaymentService {
           bet: 0,
           hasFolded: isOngoing, // 게임 중이면 true, 대기 중이면 false
           isAllIn: false,
-          button: false,
+          hasChecked: false,
           totalContributed: 0,
         };
 
@@ -125,10 +125,10 @@ export class PaymentService {
             currentBet: 0,
             buttonUser: 0,
             currentTurnSeatIndex: -1,
-            lastRaiserIndex: -1,
             sidePots: [],
             ante: false,
             tournamentId: session.id,
+            smallBlind: 100,
           };
         }
         updatedState.players[dto.seatIndex] = newPlayer;

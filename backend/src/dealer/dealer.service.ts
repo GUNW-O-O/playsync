@@ -79,21 +79,27 @@ export class DealerService {
     const ante = blind.blindStructure[blind.currentBlindLv].ante;
     const smallBlind = blind.blindStructure[blind.currentBlindLv].sb;
     state.actionDeadline = Date.now() + 30000;
+    state.smallBlind = smallBlind;
+    state.ante = ante;
     const engine = new TableEngine(state);
-    engine.startPreFlop(smallBlind, ante);
+    engine.startPreFlop();
     await this.redis.saveSnapShot(tableId, state);
     return engine.state;
   }
 
   async handleDealerAction(tournamentId: string, tableId: string, targetUserId: string, type: 'FOLD' | 'KICK') {
+    try {
+      const oldJob = await this.timeoutQueue.getJob(tableId);
+      if (oldJob) await oldJob.remove();
+    } catch (e) {
+      console.log('타임아웃 제거 실패');
+    }
     const state = await this.redis.getSnapShot(tableId);
     if (!state) throw new Error('예기치 못한 오류가 발생했습니다.')
     const engine = new TableEngine(state);
     const targetIdx = state.players.findIndex(p => p?.id === targetUserId);
 
     if (targetIdx === -1) throw new Error("대상 플레이어를 찾을 수 없습니다.");
-
-    await this.timeoutQueue.remove(tableId);
 
     if (type === 'FOLD') {
       await engine.act(targetIdx, ActionType.DEALER_FOLD);

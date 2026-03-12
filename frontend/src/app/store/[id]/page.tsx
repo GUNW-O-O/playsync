@@ -68,10 +68,10 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
                 <div className="flex gap-2">
                   {/* 상세보기 버튼 */}
                   <Link
-                    href={`/store/${id}/tournament/${t.id}`}
+                    href={`/dashboard/${t.id}`}
                     className="px-4 py-2 border rounded-lg text-sm font-medium hover:bg-gray-50"
                   >
-                    상세보기
+                    전광판
                   </Link>
 
                   {/* 시작/종료 버튼 (상태에 따라 분기 처리하면 더 좋습니다) */}

@@ -3,13 +3,13 @@ import { TableState } from "@/app/types/game";
 export default function PokerTable({ state, mySeatIndex }: { state: TableState | null, mySeatIndex: number | null }) {
   const seatStyles = [
     { top: '10%', left: '65%', transform: 'translateX(-50%)' },   // 0
-    { top: '25%', right: '5%' },                                  // 1
+    { top: '20%', right: '5%' },                                  // 1
     { top: '55%', right: '5%' },                                  // 2
     { bottom: '10%', right: '20%' },                              // 3
     { bottom: '5%', left: '50%', transform: 'translateX(-50%)' }, // 4
     { bottom: '10%', left: '20%' },                               // 5
     { top: '55%', left: '5%' },                                   // 6
-    { top: '25%', left: '5%' },                                   // 7
+    { top: '20%', left: '5%' },                                   // 7
     { top: '10%', left: '35%', transform: 'translateX(-50%)' },   // 8
   ];
 
@@ -20,7 +20,7 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
     <div className="w-full h-full relative flex items-center justify-center p-6 bg-slate-950">
       {/* 물리적 테이블 */}
       <div className="w-[90%] h-[75%] bg-emerald-900 rounded-[200px] border-[12px] border-amber-950 flex flex-col items-center justify-center shadow-2xl relative">
-        <div className="text-white/5 text-4xl font-black italic select-none">PLAY SYNC</div>
+        <div className="text-white/5 text-2xl font-black italic select-none">PLAY SYNC</div>
 
         {state && (
           <div className="mt-4 flex flex-col items-center z-10">
@@ -56,7 +56,7 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
                 <>
                   {/* 상단: 번호 표시 (가독성 위해 톤 업) */}
                   <span className="text-[10px] text-blue-400 font-bold leading-none">
-                    {i === mySeat ? '★ ME' : `${i + 1}번`}
+                    {i === mySeat ? `★ ME${i + 1}번` : `${i + 1}번`}
                   </span>
 
                   {/* 중단: 닉네임 (글자 굵기 및 크기 최적화) */}
@@ -72,14 +72,14 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
 
                   {/* 베팅 금액: 시인성 대폭 강화 (강렬한 파란색) */}
                   {player.bet > 0 && (
-                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] px-3 py-1 rounded-full font-black shadow-[0_4px_10px_rgba(37,99,235,0.4)] border border-blue-400 whitespace-nowrap">
+                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-3 py-1 rounded-full font-black shadow-[0_4px_10px_rgba(37,99,235,0.4)] border border-blue-400 whitespace-nowrap">
                       {player.bet.toLocaleString()}
                     </div>
                   )}
 
                   {/* 폴드: 암전 효과 강화 */}
                   {player.hasFolded && (
-                    <div className="absolute inset-0 bg-black/80 rounded-xl flex items-center justify-center z-10 backdrop-blur-[1px]">
+                    <div className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center z-10 backdrop-blur-[1px]">
                       <span className="text-xs font-black text-slate-500 border border-slate-700 px-2 py-0.5 rounded italic">FOLD</span>
                     </div>
                   )}

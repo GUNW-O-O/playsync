@@ -30,8 +30,8 @@ export interface TablePlayer {
   stack: number;
   bet: number;
   hasFolded: boolean;
+  hasChecked: boolean;
   isAllIn: boolean;
-  button: boolean;
   totalContributed: number;
 }
 
@@ -40,10 +40,10 @@ export interface TableState {
   players: (TablePlayer | null)[];
   buttonUser: number;
   currentTurnSeatIndex: number;
-  lastRaiserIndex: number;
   pot: number;
   sidePots: SidePot[];
   currentBet: number;
+  smallBlind: number;
   ante: boolean;
   actionDeadline?: number;
   tournamentId: string;
