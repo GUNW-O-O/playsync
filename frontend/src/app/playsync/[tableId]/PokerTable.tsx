@@ -1,65 +1,91 @@
 import { TableState } from "@/app/types/game";
 
-export default function PokerTable({ state, mySeatIndex }: { state: TableState | null, mySeatIndex: number | null}) {
+export default function PokerTable({ state, mySeatIndex }: { state: TableState | null, mySeatIndex: number | null }) {
   const seatStyles = [
-    { bottom: '5%', left: '50%', transform: 'translateX(-50%)' }, // 0
-    { bottom: '15%', left: '15%' },                               // 1
-    { top: '50%', left: '5%', transform: 'translateY(-50%)' },    // 2
-    { top: '15%', left: '15%' },                                  // 3
-    { top: '5%', left: '50%', transform: 'translateX(-50%)' },    // 4
-    { top: '15%', right: '15%' },                                 // 5
-    { top: '50%', right: '5%', transform: 'translateY(-50%)' },   // 6
-    { bottom: '15%', right: '15%' },                              // 7
-    { bottom: '5%', right: '30%' },                               // 8
+    { top: '10%', left: '65%', transform: 'translateX(-50%)' },   // 0
+    { top: '25%', right: '5%' },                                  // 1
+    { top: '55%', right: '5%' },                                  // 2
+    { bottom: '10%', right: '20%' },                              // 3
+    { bottom: '5%', left: '50%', transform: 'translateX(-50%)' }, // 4
+    { bottom: '10%', left: '20%' },                               // 5
+    { top: '55%', left: '5%' },                                   // 6
+    { top: '25%', left: '5%' },                                   // 7
+    { top: '10%', left: '35%', transform: 'translateX(-50%)' },   // 8
   ];
+
   const mySeat = mySeatIndex ?? null;
-  const phase = ['WAITING','PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN']
+  const phase = ['WAITING', 'PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN', 'HAND_END']
 
   return (
-    <div className="w-full h-full relative flex items-center justify-center p-10">
-      {/* 물리적 테이블 형태 */}
-      <div className="w-[90%] h-[75%] bg-emerald-900 rounded-[200px] border-[12px] border-amber-900 flex flex-col items-center justify-center shadow-2xl relative">
-        <div className="text-white/10 text-4xl font-black italic select-none">PLAY SYNC</div>
-        
+    <div className="w-full h-full relative flex items-center justify-center p-6 bg-slate-950">
+      {/* 물리적 테이블 */}
+      <div className="w-[90%] h-[75%] bg-emerald-900 rounded-[200px] border-[12px] border-amber-950 flex flex-col items-center justify-center shadow-2xl relative">
+        <div className="text-white/5 text-4xl font-black italic select-none">PLAY SYNC</div>
+
         {state && (
-          <div className="mt-4 flex flex-col items-center">
-            <div className="bg-black/40 px-6 py-2 rounded-full text-2xl font-bold text-yellow-400 border border-yellow-600/30">
-              POT: {state.pot.toLocaleString()}
+          <div className="mt-4 flex flex-col items-center z-10">
+            {/* POT 가독성: 배경 더 어둡게, 폰트 더 크게 */}
+            <div className="bg-black/60 px-8 py-2 rounded-full text-2xl font-black text-yellow-400 border-2 border-yellow-500/30 shadow-lg">
+              <span className="text-xs text-yellow-600 block text-center uppercase tracking-tighter">Total Pot</span>
+              {state.pot.toLocaleString()}
             </div>
-            <div className="text-white/40 text-sm mt-2 font-bold uppercase tracking-widest">{phase[state.phase]}</div>
+            <div className="text-white/60 text-sm mt-3 font-black uppercase tracking-[0.2em]">{phase[state.phase]}</div>
           </div>
         )}
       </div>
 
-      {/* 9개 좌석 렌더링 */}
+      {/* 좌석 렌더링 */}
       {Array.from({ length: 9 }).map((_, i) => {
         const player = state?.players[i] || null;
         const isCurrentTurn = state?.currentTurnSeatIndex === i;
         const isButton = state?.buttonUser === i;
 
         return (
-          <div key={i} className="absolute transition-all duration-500" style={seatStyles[i]}>
+          <div key={i} className="absolute transition-all duration-300 z-20" style={seatStyles[i]}>
+            {/* 딜러 버튼 시인성: 크기 키움 */}
             {isButton && (
-              <div className="absolute -top-3 -right-3 w-7 h-7 bg-white border border-slate-300 rounded-full flex items-center justify-center text-black font-black text-xs shadow-md z-10">D</div>
+              <div className="absolute -top-3 -right-3 w-8 h-8 bg-white border-2 border-slate-400 rounded-full flex items-center justify-center text-black font-black text-sm shadow-xl z-30">D</div>
             )}
-            <div className={`w-24 h-24 rounded-2xl flex flex-col items-center justify-center border-2 transition-all
-              ${player ? 'bg-slate-800 border-slate-600' : 'bg-black/20 border-white/10 border-dashed'}
-              ${isCurrentTurn ? 'border-yellow-400 ring-4 ring-yellow-400/20 scale-110' : ''}`}>
-              
+
+            {/* 유저 박스: w-16 -> w-20 (시인성 확보를 위한 최소 크기) */}
+            <div className={`w-20 h-22 rounded-2xl flex flex-col items-center justify-between py-2 border-2 transition-all shadow-2xl
+              ${player ? 'bg-slate-900 border-slate-700' : 'bg-black/40 border-white/10 border-dashed'}
+              ${isCurrentTurn ? 'border-yellow-400 ring-4 ring-yellow-400/30 scale-110 bg-slate-800' : ''}`}>
+
               {player ? (
                 <>
-                  <span className="text-[12px] text-blue-300 font-bold mb-1">{(i === mySeat) ? `Me ${i + 1}번` : `${i + 1}번`}</span>
-                  <span className={`text-xs font-black ${(i === mySeat) ? 'text-red-500' : ''} truncate w-full text-center px-1`}>{player.nickname}</span>
-                  <span className="text-yellow-400 text-sm font-bold">{player.stack.toLocaleString()}</span>
+                  {/* 상단: 번호 표시 (가독성 위해 톤 업) */}
+                  <span className="text-[10px] text-blue-400 font-bold leading-none">
+                    {i === mySeat ? '★ ME' : `${i + 1}번`}
+                  </span>
+
+                  {/* 중단: 닉네임 (글자 굵기 및 크기 최적화) */}
+                  <span className={`text-[12px] font-black leading-tight truncate w-full text-center px-1 
+                    ${i === mySeat ? 'text-rose-500' : 'text-slate-100'}`}>
+                    {player.nickname}
+                  </span>
+
+                  {/* 하단: 스택 (밝은 노란색으로 강조) */}
+                  <span className="text-yellow-300 text-[13px] font-black tracking-tight">
+                    {player.stack.toLocaleString()}
+                  </span>
+
+                  {/* 베팅 금액: 시인성 대폭 강화 (강렬한 파란색) */}
                   {player.bet > 0 && (
-                    <div className="absolute -top-8 bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">
+                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[11px] px-3 py-1 rounded-full font-black shadow-[0_4px_10px_rgba(37,99,235,0.4)] border border-blue-400 whitespace-nowrap">
                       {player.bet.toLocaleString()}
                     </div>
                   )}
-                  {player.hasFolded && <div className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center text-xs font-bold text-red-500">FOLDED</div>}
+
+                  {/* 폴드: 암전 효과 강화 */}
+                  {player.hasFolded && (
+                    <div className="absolute inset-0 bg-black/80 rounded-xl flex items-center justify-center z-10 backdrop-blur-[1px]">
+                      <span className="text-xs font-black text-slate-500 border border-slate-700 px-2 py-0.5 rounded italic">FOLD</span>
+                    </div>
+                  )}
                 </>
               ) : (
-                <span className="text-white/10 font-bold text-xs italic">{i + 1}번 EMPTY</span>
+                <span className="text-white/5 font-bold text-[10px] tracking-tighter uppercase">Empty</span>
               )}
             </div>
           </div>

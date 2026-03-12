@@ -33,6 +33,7 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
   const resolvedParams = await params;
   const id = resolvedParams.id;
   const store = await getStoreData(id);
+  console.log(store)
   const tournaments = await getStoreTournament(id);
   if (!store) return <div>상점을 찾을 수 없습니다.</div>;
 
@@ -110,8 +111,8 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* 대회 및 블라인드 통합 생성 폼 */}
         <div className="bg-white p-6 rounded-xl shadow-lg border">
-          <h2 className="text-xl font-bold mb-6">대회 및 블라인드 설정</h2>
-          <TournamentForm storeId={id} />
+          <h2 className="text-xl text-gray-700 font-bold mb-6">대회 및 블라인드 설정</h2>
+          <TournamentForm storeId={id} savedBlinds={store.blindStructures} />
         </div>
       </div>
     </div>

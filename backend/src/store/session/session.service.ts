@@ -238,6 +238,13 @@ export class SessionService {
 
   // 세션 완료
   async completeSession(id: string) {
+    const tables = await this.prismaService.table.findMany({
+      where : { tournamentId : id }
+    });
+    let tableIds: string[] = [];
+    tables.forEach(t => {
+      tableIds.push(t.id);
+    })
     await this.prismaService.$transaction(async (tx) => {
       await tx.tournament.update({
         where: {
@@ -259,6 +266,7 @@ export class SessionService {
         },
       });
     });
+    await this.redis.deleteTournament(id, tableIds);
   }
 
   // 세션 수정

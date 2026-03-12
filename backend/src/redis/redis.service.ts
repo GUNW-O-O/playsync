@@ -32,7 +32,7 @@ export class RedisService {
 
   // 테이블 초기생성
   async setSeatBitmap(tournamentId: string, tableId: string) {
-    const key = `tournament:seat:${tournamentId}`;
+    const key = `tournament:${tournamentId}:seat`;
     const field = `table:${tableId}`;
 
     let bitmap = '000000000'
@@ -42,7 +42,7 @@ export class RedisService {
   }
 
   async updateSeatBitmap(tournamentId: string, tableId: string, seatIndex: number, isOccupied: boolean) {
-    const key = `tournament:seat:${tournamentId}`;
+    const key = `tournament:${tournamentId}:seat`;
     const field = `table:${tableId}`;
 
     // 자리가 비었으면 0
@@ -56,7 +56,7 @@ export class RedisService {
   }
 
   async getTournamentTables(tournamentId: string) {
-    const key = `tournament:seat:${tournamentId}`;
+    const key = `tournament:${tournamentId}:seat`;
     const raw = await this.redis.hgetall(key);
     // 필드에서 table: 제외후 테이블아이디와 비트맵 boolean배열만들어 리턴
     return Object.entries(raw).map(([field, bitmap]) => {
@@ -67,7 +67,7 @@ export class RedisService {
   }
 
   async getTableSeatStatus(tournamentId: string, tableId: string) {
-    const key = `tournament:seat:${tournamentId}`;
+    const key = `tournament:${tournamentId}:seat`;
     const bitmap = await this.redis.hget(key, `table:${tableId}`);
     return bitmap ? bitmap.split('').map((bit) => bit === '1') : [];
   }
@@ -243,5 +243,16 @@ export class RedisService {
     return raw ? JSON.parse(raw) : null;
   }
 
+  // 대회 종료시 redis 정리
+  async deleteTournament(tournamentId: string, tables: string[]) {
+    const pipe = this.redis.pipeline();
+    pipe.del(`tournament:${tournamentId}:info`)
+    pipe.del(`tournament:${tournamentId}:user`)
+    pipe.del(`tournament:seat:${tournamentId}`)
+    tables.forEach(t => {
+      pipe.del(`table:state:${t}`);
+    })
+    await pipe.exec();
+  }
 
 }

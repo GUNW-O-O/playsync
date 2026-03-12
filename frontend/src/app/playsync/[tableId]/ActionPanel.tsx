@@ -1,4 +1,5 @@
 import { ActionType } from "@/app/types/game";
+import ActionTimer from "@/component/ActionTimer";
 import { useState } from "react";
 
 export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: any) {
@@ -76,6 +77,12 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
           CHECK
         </button>
       </div>
+      {state.actionDeadline && (
+        <div className="mt-2 space-y-1">
+          <ActionTimer deadline={state.actionDeadline} />
+          <p className="text-[9px] text-center text-slate-600 font-bold tracking-tighter uppercase">Remaining Decision Time</p>
+        </div>
+      )}
     </div>
   );
 }

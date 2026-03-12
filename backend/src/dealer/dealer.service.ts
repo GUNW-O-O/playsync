@@ -78,6 +78,7 @@ export class DealerService {
     }
     const ante = blind.blindStructure[blind.currentBlindLv].ante;
     const smallBlind = blind.blindStructure[blind.currentBlindLv].sb;
+    state.actionDeadline = Date.now() + 30000;
     const engine = new TableEngine(state);
     engine.startPreFlop(smallBlind, ante);
     await this.redis.saveSnapShot(tableId, state);

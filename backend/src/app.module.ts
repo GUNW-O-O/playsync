@@ -13,6 +13,7 @@ import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { StoreModule } from './store/store.module';
 import { WsGateway } from './ws/ws.gateway';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 @Module({
   imports:[

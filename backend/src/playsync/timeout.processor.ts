@@ -30,7 +30,6 @@ export class TimeoutProcessor extends WorkerHost {
       tableId,
       {
         action: ActionType.TIME_OUT,
-        amount: 0
       }
     );
 

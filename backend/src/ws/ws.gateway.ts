@@ -1,7 +1,9 @@
+import { OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { DealerService } from 'src/dealer/dealer.service';
 import { PlaysyncService } from 'src/playsync/playsync.service';
+import { RedisService } from 'src/redis/redis.service';
 
 @WebSocketGateway({
   path: '/playsync',
@@ -13,6 +15,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   constructor(
     private readonly dealer: DealerService,
     private readonly playsync: PlaysyncService,
+    private readonly redis: RedisService,
     private readonly jwtService: JwtService,
   ) { }
 
@@ -44,8 +47,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       console.log(`User ${payload.sub} (${payload.role}) joined Table ${tableId}`);
 
-      // 입장 성공 시 현재 상태 한 번 쏴주기 (Optional)
-      // await this.broadcastGameState(tableId);
+      const updatedState = await this.redis.getSnapShot(tableId);
+      await this.broadcastToTable(tableId, 'renderGame', updatedState);
 
     } catch (err) {
       console.error('연결 거부:', err.message);
@@ -60,6 +63,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.tableSessions.get(tableId)?.delete(client);
       if (this.tableSessions.get(tableId)?.size === 0) {
         this.tableSessions.delete(tableId);
+      } else {
+        console.log(`User left Table ${tableId}`);
       }
     }
   }
@@ -114,6 +119,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     this.broadcastToTable(tableId, 'renderGame', updatedState);
+  }
+
+  // 타임아웃 프로세서
+  @OnEvent('game.state.updated')
+  handleGameStateUpdated(payload: { tableId: string; state: any }) {
+    this.broadcastToTable(payload.tableId, 'renderGame', payload.state);
   }
 
 

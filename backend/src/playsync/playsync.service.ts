@@ -1,5 +1,6 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
@@ -14,6 +15,7 @@ export class PlaysyncService {
     @InjectQueue('player-timeout') private timeoutQueue: Queue,
     private readonly redis: RedisService,
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) { }
 
   async joinTable(tableId: string, userId?: string) {
@@ -44,6 +46,12 @@ export class PlaysyncService {
   }
 
   async handleAction(userId: string, tableId: string, dto: PlayerActionDto) {
+    try {
+      const oldJob = await this.timeoutQueue.getJob(tableId);
+      if (oldJob) await oldJob.remove();
+    } catch (e) {
+      console.log('타임아웃 제거 실패');
+    }
     // Redis에서 상태 로드 및 엔진 초기화
     const state = await this.redis.getSnapShot(tableId);
     if (!state) throw new Error(`Table ${tableId} not found`);
@@ -72,7 +80,8 @@ export class PlaysyncService {
           {
             delay: 30000,
             jobId: tableId, // 테이블별 고유 ID로 덮어쓰기/관리
-            removeOnComplete: true
+            removeOnComplete: true,
+            removeOnFail: true,
           }
         );
         state.actionDeadline = Date.now() + 30000;
@@ -81,6 +90,9 @@ export class PlaysyncService {
 
     // Redis 저장
     await this.redis.saveSnapShot(tableId, state);
+    if(dto.action === ActionType.TIME_OUT) {
+      this.eventEmitter.emit('game.state.updated', {tableId, state: state})
+    }
     return state;
   }
 

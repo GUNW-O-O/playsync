@@ -16,7 +16,10 @@ export class StoreService {
   // 특정 가맹점 상세 조회
   async getStoreDetail(id: string, ownerId: string) {
     const store = await this.prisma.store.findUnique({
-      where: { id }
+      where: { id },
+      include : {
+        blindStructures : true,
+      }
     });
     if (!store) throw new NotFoundException('일시적인 오류 혹은 가맹점 정보가 없습니다.');
     if (store.ownerId !== ownerId) throw new ForbiddenException('본인의 가맹점이 아닙니다.');
