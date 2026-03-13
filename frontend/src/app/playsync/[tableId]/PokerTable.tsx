@@ -20,7 +20,7 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
     <div className="w-full h-full relative flex items-center justify-center p-6 bg-slate-950">
       {/* 물리적 테이블 */}
       <div className="w-[90%] h-[75%] bg-emerald-900 rounded-[200px] border-[12px] border-amber-950 flex flex-col items-center justify-center shadow-2xl relative">
-        <div className="text-white/5 text-2xl font-black italic select-none">PLAY SYNC</div>
+        <div className="text-white/5 text-2xl font-black italic select-none">{(state ? `${state.smallBlind}/${state.smallBlind * 2}` : 'PLAY SYNC')}</div>
 
         {state && (
           <div className="mt-4 flex flex-col items-center z-10">
@@ -76,7 +76,7 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
                       {player.bet.toLocaleString()}
                     </div>
                   )}
-                  
+
                   {/* 올인 상태: 빨간색 강조 효과 (추가) */}
                   {player.isAllIn && (
                     <div className="absolute inset-0 bg-rose-600/20 border-2 border-rose-500 rounded-xl flex items-end justify-center pb-1 z-10 animate-pulse">

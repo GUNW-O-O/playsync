@@ -40,12 +40,13 @@ export interface TableState {
   players: (TablePlayer | null)[];
   buttonUser: number;
   currentTurnSeatIndex: number;
-  lastRaiserIndex: number;
   pot: number;
   sidePots: SidePot[];
   currentBet: number;
+  smallBlind: number;
   ante: boolean;
   actionDeadline?: number;
+  tournamentId: string;
 }
 
 export interface SidePot {
