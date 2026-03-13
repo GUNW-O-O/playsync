@@ -29,7 +29,7 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
   if (state.phase === 5) {
     return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">핸드결과 대기 중...</div>;
   }
-  if (state.currentTurnSeatIndex === -1) {
+  if (state.currentTurnSeatIndex === -1 || state.phase === 0) {
     return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">게임시작 대기 중...</div>;
   }
   if (state.currentTurnSeatIndex !== mySeatIndex) {
@@ -66,7 +66,7 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
       <div className="grid grid-cols-2 gap-2">
         <div></div>
         <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack })} className="h-14 bg-indigo-700 rounded-xl font-black">ALLIN</button>
-        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE</button>
+        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE/BET</button>
         <button
           disabled={needsToCall === 0 && state.currentBet !== 0}
           onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CALL, amount: state.currentBet })}
@@ -96,9 +96,6 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
 // 딜러 섹션 (승자 선택 포함)
 function DealerSection({ state, onAction }: any) {
   const [winners, setWinners] = useState<string[]>([]);
-  const [phase, setPhase] = useState(0);
-
-  setPhase(state.phase);
 
   return (
     <div className="flex flex-col gap-4">
@@ -113,7 +110,7 @@ function DealerSection({ state, onAction }: any) {
           </button>
         ))}
       </div>
-      {(phase === 5 || phase === 6) ? (
+      {(state.phase === 5 || state.phase === 6) ? (
         <button
           onClick={() => { onAction('DEALER_ACTION', { action: 'RESOLVE_WINNERS', winnerUserIds: winners }); setWinners([]); }}
           className="bg-amber-600 h-14 rounded-xl font-black text-white"
@@ -123,7 +120,7 @@ function DealerSection({ state, onAction }: any) {
       ) : (
         <></>
       )}
-      {phase === 0 ? (
+      {state.phase === 0 ? (
         <button
           onClick={() => { onAction('DEALER_ACTION', { action: 'START_PRE_FLOP' }) }}
           className="bg-emerald-600 h-14 rounded-xl font-black text-white"

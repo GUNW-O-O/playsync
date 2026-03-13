@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, use } from 'react';
 
-export default function TournamentDashboard({ tournamentId }: { tournamentId: string }) {
+export default function TournamentDashboard({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const tournamentId = resolvedParams.id;
   const [data, setData] = useState<any>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -10,7 +12,10 @@ export default function TournamentDashboard({ tournamentId }: { tournamentId: st
   const fetchData = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/playsync/dashboard/${tournamentId}`);
-      if (!res.ok) throw new Error('데이터 로드 실패');
+      console.log(res)
+      if (!res.ok) {
+        throw new Error('데이터 로드 실패');
+      }
       const result = await res.json();
       setData(result);
 

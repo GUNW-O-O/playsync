@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { PlaysyncService } from './playsync.service';
 import { PlaysyncController } from './playsync.controller';
 import { EventEmitterModule } from '@nestjs/event-emitter';
+import { TimeoutProcessor } from './timeout.processor';
 
 @Module({
   imports: [
@@ -12,7 +13,10 @@ import { EventEmitterModule } from '@nestjs/event-emitter';
     EventEmitterModule.forRoot(),
   ],
   controllers: [PlaysyncController],
-  providers: [PlaysyncService],
+  providers: [
+    PlaysyncService,
+    TimeoutProcessor
+  ],
   exports: [PlaysyncService],
 })
 export class PlaysyncModule {}

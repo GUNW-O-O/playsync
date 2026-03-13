@@ -33,7 +33,6 @@ export default async function StoreDetailPage({ params }: { params: Promise<{ id
   const resolvedParams = await params;
   const id = resolvedParams.id;
   const store = await getStoreData(id);
-  console.log(store)
   const tournaments = await getStoreTournament(id);
   if (!store) return <div>상점을 찾을 수 없습니다.</div>;
 

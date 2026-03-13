@@ -251,6 +251,7 @@ export class RedisService {
     pipe.del(`tournament:seat:${tournamentId}`)
     tables.forEach(t => {
       pipe.del(`table:state:${t}`);
+      pipe.del(`tournament:${t}:seat`);
     })
     await pipe.exec();
   }

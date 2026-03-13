@@ -12,44 +12,48 @@ export class TableEngine {
   // 플레이어 액션 처리
   public async act(playerIndex: number, action: ActionType, raiseAmount?: number) {
     const player = this.state.players[playerIndex];
-    if (!player || player.hasFolded || this.state.currentTurnSeatIndex !== playerIndex || this.state.phase === GamePhase.SHOWDOWN) {
-      throw new Error("액션 불가 상태");
+    if (!player) {
+      throw new Error("유효하지 않은 플레이어");
     }
-
-    switch (action) {
-      case ActionType.FOLD:
-      case ActionType.DEALER_FOLD:
-      case ActionType.DEALER_KICK:
-        player.hasFolded = true;
-        break;
-
-      case ActionType.TIME_OUT:
-        (player.bet < this.state.currentBet) ? player.hasFolded = true : false;
-        break;
-
-      case ActionType.CHECK:
-        if (player.bet < this.state.currentBet) throw new Error("콜이 필요합니다.");
-        player.hasChecked = true;
-        break;
-
-      case ActionType.CALL:
-        this.handleCall(player);
-        break;
-
-      case ActionType.RAISE:
-        // raiseAmount는 '이번 라운드에 내가 낼 총액' 기준
-        if (!raiseAmount || raiseAmount <= this.state.currentBet) {
-          throw new Error("룰에 맞추어 레이즈해주세요.");
-        }
-        this.handleRaise(player, raiseAmount);
-        break;
-
+    if (this.state.currentTurnSeatIndex !== playerIndex) {
+      switch (action) {
+        case ActionType.DEALER_FOLD:
+        case ActionType.DEALER_KICK:
+          player.hasFolded = true;
+      }
+      if (this.shouldGoToShowdown()) {
+        this.state.phase = GamePhase.SHOWDOWN;
+      }
+      return this.state;
     }
+    if (!player.hasFolded && this.state.currentTurnSeatIndex === playerIndex) {
+      switch (action) {
+        case ActionType.FOLD:
+          player.hasFolded = true;
+          break;
 
+        case ActionType.TIME_OUT:
+          (player.bet < this.state.currentBet) ? player.hasFolded = true : false;
+          break;
+
+        case ActionType.CHECK:
+          if (player.bet < this.state.currentBet) throw new Error("콜이 필요합니다.");
+          player.hasChecked = true;
+          break;
+
+        case ActionType.CALL:
+          this.handleCall(player);
+          break;
+
+        case ActionType.RAISE:
+          if (!raiseAmount || raiseAmount <= this.state.currentBet) {
+            throw new Error("룰에 맞추어 레이즈해주세요.");
+          }
+          this.handleRaise(player, raiseAmount);
+          break;
+      }
+    }
     const nextTurn = this.getNextTurnSeatIndex();
-    if (this.shouldGoToShowdown()) {
-      this.state.phase = GamePhase.SHOWDOWN;
-    }
     const activePlayers = this.state.players.filter(p => p && !p.hasFolded && !p.isAllIn);
     const isAllMatched = activePlayers.every(p => p!.bet === this.state.currentBet);
     const hasEveryoneActed = activePlayers.every(p => p!.hasChecked);
@@ -62,13 +66,17 @@ export class TableEngine {
         this.state.currentTurnSeatIndex = nextTurn;
       }
     }
+    if (this.shouldGoToShowdown()) {
+      this.state.phase = GamePhase.SHOWDOWN;
+    }
     return this.state;
+
   }
 
   public nextPhase() {
     const phases = [GamePhase.PRE_FLOP, GamePhase.FLOP, GamePhase.TURN, GamePhase.RIVER, GamePhase.SHOWDOWN];
     const currentIndex = phases.indexOf(this.state.phase);
-
+    this.calculateSidePots();
     if (currentIndex < phases.length - 1) {
       this.state.phase = phases[currentIndex + 1];
       this.state.players.forEach(p => {
@@ -84,7 +92,7 @@ export class TableEngine {
   }
 
   // --- 사이드 팟 계산 로직 ---
-  public calculateSidePots() {
+  private calculateSidePots() {
     this.state.sidePots = [];
     const participants = this.state.players
       .filter((p): p is TablePlayer => p !== null && p.totalContributed > 0)
@@ -107,19 +115,26 @@ export class TableEngine {
   }
 
   public async resolveWinner(winnerIds: string[]) {
-    // 사이드팟 리스트를 돌면서 승자가 포함되어 있으면 해당 금액 분배
+    this.calculateSidePots();
     for (const pot of this.state.sidePots) {
-      const winnersForThisPot = winnerIds.filter(id => pot.relevantPlayerIds.includes(id));
-      if (winnersForThisPot.length > 0) {
-        const share = Math.floor(pot.amount / winnersForThisPot.length);
-        winnersForThisPot.forEach(id => {
-          const p = this.state.players.find(pl => pl?.id === id);
-          if (p) p.stack += share;
-        });
+      // winnerIds는 클릭 순서대로임 (0번 인덱스가 1등)
+      // 이 사이드팟에 지분이 있는 사람들 중 가장 높은 순위의 사람 한 명을 찾음
+      const potWinnerId = winnerIds.find(id => pot.relevantPlayerIds.includes(id));
+
+      if (potWinnerId) {
+        const share = pot.amount;
+        const p = this.state.players.find(pl => pl?.id === potWinnerId);
+        if (p) {
+          p.stack += share;
+          console.log(`사이드팟 ${share}을(를) 유저 ${p.id}에게 지급`);
+        }
       }
     }
     this.state.pot = 0;
     this.state.sidePots = [];
+
+    this.state.players.forEach(p => { if (p) p.totalContributed = 0; });
+
     await this.handleHandEnd();
   }
 

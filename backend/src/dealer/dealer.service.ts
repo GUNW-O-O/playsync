@@ -120,8 +120,13 @@ export class DealerService {
       const nextPlayer = state.players[state.currentTurnSeatIndex];
       if (nextPlayer) {
         await this.timeoutQueue.add('player-timeout',
-          { tournamentId, tableId, userId: nextPlayer.id },
-          { delay: 30000, jobId: tableId }
+          { tableId, userId: nextPlayer.id },
+          {
+            delay: 30000,
+            jobId: tableId,
+            removeOnComplete: true,
+            removeOnFail: true
+          }
         );
         state.actionDeadline = Date.now() + 30000;
       }
