@@ -64,24 +64,16 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
       </div>
 
       <div className="grid grid-cols-2 gap-2">
-        <div></div>
-        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack })} className="h-14 bg-indigo-700 rounded-xl font-black">ALLIN</button>
-        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black">RAISE/BET</button>
-        <button
-          disabled={needsToCall === 0 && state.currentBet !== 0}
-          onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CALL, amount: state.currentBet })}
-          className="h-14 bg-blue-700 rounded-xl font-black"
-        >
-          {needsToCall > 0 ? `CALL (${needsToCall.toLocaleString()})` : 'CALL'}
-        </button>
+        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black text-sm">RAISE TO {raiseVal.toLocaleString()}</button>
+        <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack })} className="h-14 bg-rose-900 rounded-xl font-black">ALL-IN</button>
         <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.FOLD })} className="h-14 bg-red-700 rounded-xl font-black">FOLD</button>
-        <button
-          disabled={!canCheck}
-          onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CHECK })}
-          className={`h-14 rounded-xl font-black ${canCheck ? 'bg-slate-700' : 'bg-slate-800 opacity-50 cursor-not-allowed'}`}
-        >
-          CHECK
-        </button>
+
+        {canCheck ? (
+          <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CHECK })} className="h-14 bg-slate-700 rounded-xl font-black border-2 border-emerald-500">CHECK</button>
+        ) : (
+          <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CALL })} className="h-14 bg-blue-700 rounded-xl font-black">CALL ({needsToCall.toLocaleString()})</button>
+        )}
+
       </div>
       {state.actionDeadline && (
         <div className="mt-2 space-y-1">
