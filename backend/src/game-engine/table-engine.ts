@@ -54,8 +54,8 @@ export class TableEngine {
       }
     }
     const nextTurn = this.getNextTurnSeatIndex();
-    const activePlayers = this.state.players.filter(p => p && !p.hasFolded && !p.isAllIn);
-    const isAllMatched = activePlayers.every(p => p!.bet === this.state.currentBet);
+    const activePlayers = this.state.players.filter(p => p && !p.hasFolded);
+    const isAllMatched = activePlayers.every(p => p!.bet === this.state.currentBet || p!.isAllIn);
     const hasEveryoneActed = activePlayers.every(p => p!.hasChecked);
     if (isAllMatched && hasEveryoneActed) {
       this.nextPhase();
@@ -66,7 +66,7 @@ export class TableEngine {
         this.state.currentTurnSeatIndex = nextTurn;
       }
     }
-    if (this.shouldGoToShowdown()) {
+    if (isAllMatched && this.shouldGoToShowdown()) {
       this.state.phase = GamePhase.SHOWDOWN;
     }
     return this.state;
@@ -134,7 +134,7 @@ export class TableEngine {
     this.state.sidePots = [];
 
     this.state.players.forEach(p => { if (p) p.totalContributed = 0; });
-
+    this.initTable();
     await this.handleHandEnd();
   }
 

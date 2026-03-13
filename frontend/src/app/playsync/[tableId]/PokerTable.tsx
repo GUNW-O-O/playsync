@@ -72,8 +72,17 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
 
                   {/* 베팅 금액: 시인성 대폭 강화 (강렬한 파란색) */}
                   {player.bet > 0 && (
-                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] px-3 py-1 rounded-full font-black shadow-[0_4px_10px_rgba(37,99,235,0.4)] border border-blue-400 whitespace-nowrap">
+                    <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[9px] px-3 py-1 rounded-full font-black shadow-[0_4px_10px_rgba(37,99,235,0.4)] border border-blue-400 whitespace-nowrap">
                       {player.bet.toLocaleString()}
+                    </div>
+                  )}
+                  
+                  {/* 올인 상태: 빨간색 강조 효과 (추가) */}
+                  {player.isAllIn && (
+                    <div className="absolute inset-0 bg-rose-600/20 border-2 border-rose-500 rounded-xl flex items-end justify-center pb-1 z-10 animate-pulse">
+                      <span className="text-[10px] font-black text-white bg-rose-600 px-2 py-0.5 rounded-t-md shadow-lg">
+                        ALL-IN
+                      </span>
                     </div>
                   )}
 

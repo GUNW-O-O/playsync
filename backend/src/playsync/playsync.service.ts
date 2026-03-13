@@ -100,7 +100,7 @@ export class PlaysyncService {
     const updates = state.players
       .filter(p => p !== null)
       .map(p => this.prisma.tablePlayer.update({
-        where: { id: p.id },
+        where: { tableId_userId: { tableId: p.tableId, userId: p.id } },
         data: { currentStack: p.stack }
       }));
     await this.prisma.$transaction(updates);

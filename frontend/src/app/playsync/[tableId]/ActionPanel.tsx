@@ -96,41 +96,92 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
 // 딜러 섹션 (승자 선택 포함)
 function DealerSection({ state, onAction }: any) {
   const [winners, setWinners] = useState<string[]>([]);
+  const phase = ['WAITING', 'PREFLOP', 'FLOP', 'TURN', 'RIVER', 'SHOWDOWN', 'HAND_END']
+
+  // 승자 결정 단계인지 확인 (SHOWDOWN = 5, HAND_END = 6 등으로 가정)
+  const isResolvePhase = state.phase === 5 || state.phase === 6;
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="text-amber-500 font-black text-sm uppercase">Dealer Console</h2>
-      <div className="grid grid-cols-3 gap-1">
-        {state.players.map((p: any, i: number) => p && (
-          <button
-            key={p.id} onClick={() => setWinners(prev => prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id])}
-            className={`p-2 rounded text-[10px] border font-bold ${winners.includes(p.id) ? 'bg-yellow-500 border-white text-black' : 'bg-slate-800 border-slate-700 text-slate-400'}`}
-          >
-            {i + 1}번 {p.nickname}
-          </button>
-        ))}
+    <div className="flex flex-col gap-4 p-4 bg-slate-900 rounded-2xl border border-slate-800">
+      <div className="flex justify-between items-center">
+        <h2 className="text-amber-500 font-black text-xs uppercase tracking-widest">Dealer Console</h2>
+        <span className="text-[10px] text-slate-500">PHASE: {phase[state.phase]}</span>
       </div>
-      {(state.phase === 5 || state.phase === 6) ? (
-        <button
-          onClick={() => { onAction('DEALER_ACTION', { action: 'RESOLVE_WINNERS', winnerUserIds: winners }); setWinners([]); }}
-          className="bg-amber-600 h-14 rounded-xl font-black text-white"
-        >
-          CONFIRM WINNERS ({winners.length})
-        </button>
-      ) : (
-        <></>
-      )}
-      {state.phase === 0 ? (
-        <button
-          onClick={() => { onAction('DEALER_ACTION', { action: 'START_PRE_FLOP' }) }}
-          className="bg-emerald-600 h-14 rounded-xl font-black text-white"
-        >
-          START_PRE_FLOP
-        </button>
-      ) : (<></>)}
-      <div className="grid grid-cols-2 gap-2 mt-4">
-        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_FOLD, targetUserIdx: winners[0] }); setWinners([]); }} className="bg-orange-900 py-3 rounded-lg text-[10px] font-bold">FORCE FOLD</button>
-        <button onClick={() => { onAction('DEALER_ACTION', { action: ActionType.DEALER_KICK, targetUserIdx: winners[0] }); setWinners([]); }} className="bg-black py-3 rounded-lg text-[10px] font-bold">KICK</button>
+
+      {/* 플레이어 선택 그리드 */}
+      <div className="grid grid-cols-3 gap-2">
+        {state.players.map((p: any, i: number) => {
+          if (!p) return null;
+          const isSelected = winners.includes(p.id);
+          const selectOrder = winners.indexOf(p.id) + 1;
+
+          return (
+            <button
+              key={p.id}
+              onClick={() => setWinners(prev =>
+                prev.includes(p.id) ? prev.filter(id => id !== p.id) : [...prev, p.id]
+              )}
+              className={`relative p-2 rounded-lg border-2 font-bold transition-all ${isSelected
+                ? 'bg-amber-500 border-white text-black'
+                : 'bg-slate-800 border-slate-700 text-slate-400'
+                } ${p.hasFolded ? 'opacity-40' : ''}`}
+            >
+              {isSelected && (
+                <div className="absolute -top-2 -right-2 bg-blue-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900">
+                  {selectOrder}
+                </div>
+              )}
+              <div className="text-[10px] truncate">{p.nickname}</div>
+              <div className="text-[8px] opacity-60">{p.hasFolded ? 'FOLD' : 'ACTIVE'}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 상황별 액션 버튼 */}
+      <div className="flex flex-col gap-2">
+        {isResolvePhase ? (
+          <button
+            disabled={winners.length === 0}
+            onClick={() => {
+              onAction('DEALER_ACTION', { action: 'RESOLVE_WINNERS', winnerUserIds: winners });
+              setWinners([]);
+            }}
+            className="bg-amber-600 hover:bg-amber-500 disabled:bg-slate-700 h-12 rounded-xl font-black text-white shadow-lg transition-colors"
+          >
+            CONFIRM WINNERS ({winners.length})
+          </button>
+        ) : state.phase === 0 ? (
+          <button
+            onClick={() => onAction('DEALER_ACTION', { action: 'START_PRE_FLOP' })}
+            className="bg-emerald-600 hover:bg-emerald-500 h-12 rounded-xl font-black text-white"
+          >
+            START NEW HAND
+          </button>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              disabled={winners.length !== 1}
+              onClick={() => {
+                onAction('DEALER_ACTION', { action: 'DEALER_FOLD', targetUserId: winners[0] });
+                setWinners([]);
+              }}
+              className="bg-red-900/50 hover:bg-red-800 border border-red-700 disabled:opacity-30 py-3 rounded-lg text-[10px] font-bold text-red-200"
+            >
+              FORCE FOLD
+            </button>
+            <button
+              disabled={winners.length !== 1}
+              onClick={() => {
+                onAction('DEALER_ACTION', { action: 'DEALER_KICK', targetUserId: winners[0] });
+                setWinners([]);
+              }}
+              className="bg-slate-800 hover:bg-black border border-slate-700 disabled:opacity-30 py-3 rounded-lg text-[10px] font-bold text-white"
+            >
+              KICK PLAYER
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
