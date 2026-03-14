@@ -105,6 +105,7 @@ export class SessionService {
           name: dto.name,
           type: dto.type,
           storeId: dto.storeId,
+          itmCount: dto.itmCount,
           blindId: (dto.blindId ? dto.blindId : blindId),
           dealerOtp: Math.floor(1000 + Math.random() * 9000), // 4자리 OTP [cite: 9]
           startStack: dto.startStack,

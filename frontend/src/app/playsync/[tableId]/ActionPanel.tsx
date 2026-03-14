@@ -1,6 +1,6 @@
 import { ActionType } from "@/app/types/game";
 import ActionTimer from "@/component/ActionTimer";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: any) {
   if (!state) return <div className="text-slate-600 text-center mt-10 italic">게임 시작 대기 중...</div>;
@@ -19,13 +19,18 @@ export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: 
 // 플레이어 섹션 (BB 기준 슬라이더 포함)
 function PlayerSection({ state, mySeatIndex, onAction }: any) {
   const bigBlind = state.smallBlind * 2;
-  const [raiseVal, setRaiseVal] = useState(bigBlind);
   const myPlayer = state.players[mySeatIndex];
-  const currentInPot = myPlayer?.bet || 0;
-  const needsToCall = state.currentBet - currentInPot;
+  const [raiseVal, setRaiseVal] = useState(Math.min(bigBlind, myPlayer?.stack || 0));
+  const needsToCall = state.currentBet - myPlayer?.bet || 0;
   const canCheck = needsToCall === 0;
-  const goingToAllIn = myPlayer?.stack <= needsToCall;
+  const goingToAllIn = needsToCall >= myPlayer?.stack;
+  const canRaise = raiseVal >= state.currentBet + bigBlind;
 
+  useEffect(() => {
+    if (state.currentTurnSeatIndex === mySeatIndex) {
+      setRaiseVal(state.currentBet + bigBlind);
+    }
+  }, [state.currentTurnSeatIndex, state.phase]);
 
   if (state.phase === 5) {
     return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">핸드결과 대기 중...</div>;
@@ -67,13 +72,13 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
       <div className="grid grid-cols-2 gap-2">
         {goingToAllIn ? (
           <>
-            <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack })} className="h-14 bg-rose-900 rounded-xl font-black">ALL-IN TO CALL</button>
+            <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CALL, amount: myPlayer?.stack })} className="h-14 bg-rose-900 rounded-xl font-black">ALL-IN TO CALL</button>
             <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.FOLD })} className="h-14 bg-red-700 rounded-xl font-black">FOLD</button>
           </>
         ) : (
           <>
-            <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black text-sm">RAISE TO {raiseVal.toLocaleString()}</button>
-            <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack })} className="h-14 bg-rose-900 rounded-xl font-black">ALL-IN</button>
+            <button disabled={!canRaise} onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: raiseVal })} className="h-14 bg-indigo-700 rounded-xl font-black text-sm disabled:opacity-30">RAISE TO {raiseVal.toLocaleString()}</button>
+            <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.RAISE, amount: myPlayer?.stack + myPlayer?.bet })} className="h-14 bg-rose-900 rounded-xl font-black">ALL-IN</button>
             {canCheck ? (
               <button onClick={() => onAction('PLAYER_ACTION', { action: ActionType.CHECK })} className="h-14 bg-slate-700 rounded-xl font-black border-2 border-emerald-500">CHECK</button>
             ) : (

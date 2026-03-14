@@ -162,12 +162,14 @@ export class DealerService {
     const engine = new TableEngine(state, async (playerId: string) => {
       return await this.playsync.processRebuy(tournamentId, playerId);
     });
-    engine.resolveWinner(winnerUserIds);
+    await engine.resolveWinner(winnerUserIds);
     for (const player of engine.state.players) {
       if (player && player.stack <= 0) {
+        console.log('플레이어 제거됨');
         await this.playsync.eliminatePlayer(tournamentId, player.id);
       }
     }
+    await engine.initTable();
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
     await this.redis.saveSnapShot(tableId, state);
     await this.playsync.syncTableInventoryToDb(state);
