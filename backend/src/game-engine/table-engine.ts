@@ -134,8 +134,8 @@ export class TableEngine {
     this.state.sidePots = [];
 
     this.state.players.forEach(p => { if (p) p.totalContributed = 0; });
-    this.initTable();
     await this.handleHandEnd();
+    this.initTable();
   }
 
   private handleCall(player: TablePlayer) {
@@ -149,14 +149,14 @@ export class TableEngine {
     // 가진 돈보다 더 많이 레이즈하려고 하면 자동으로 가진 돈 전부를 베팅(올인)
     const needed = betAmount - player.bet;
     const amount = Math.min(needed, player.stack);
-    this.resetChecked();
-    player.hasChecked = true;
     this.executeBet(player, amount);
-
+    
     // 실제 베팅된 결과가 기존 currentBet보다 높으면 갱신
     if (player.bet > this.state.currentBet) {
+      this.resetChecked();
       this.state.currentBet = player.bet;
     }
+    player.hasChecked = true;
   }
 
   // 레이즈시 모든 플레이어 checked 해제
@@ -168,10 +168,11 @@ export class TableEngine {
 
   // 공통 베팅 처리 (bet, totalContributed 동시 업데이트)
   private executeBet(player: TablePlayer, amount: number) {
-    player.stack -= amount;
-    player.bet += amount;
-    player.totalContributed += amount;
-    this.state.pot += amount;
+    const payableStack = Math.min(player.stack, amount)
+    player.stack -= payableStack;
+    player.bet += payableStack;
+    player.totalContributed += payableStack;
+    this.state.pot += payableStack;
 
     if (player.stack === 0) {
       player.isAllIn = true;
@@ -222,8 +223,6 @@ export class TableEngine {
    * 딜러 준비 완료 후 PRE_FLOP 진입
    */
   public startPreFlop() {
-    // 테이블 초기화
-    this.initTable();
     // 1. BTN, SB, BB 유저를 순차적으로 찾음 (null 제외)
     const btnIdx = this.findNextActiveSeat((this.state.buttonUser + 1) % this.state.players.length);
     const sbIdx = this.findNextActiveSeat((btnIdx + 1) % this.state.players.length);

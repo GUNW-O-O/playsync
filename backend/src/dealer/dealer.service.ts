@@ -70,6 +70,12 @@ export class DealerService {
   }
 
   async startPreFlop(tournamentId: string, tableId: string) {
+    try {
+      const oldJob = await this.timeoutQueue.getJob(tableId);
+      if (oldJob) await oldJob.remove();
+    } catch (e) {
+      console.log('타임아웃 제거 실패');
+    }
     const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
     if (!blind) throw new Error('블라인드 정보가 없습니다.');
@@ -83,6 +89,19 @@ export class DealerService {
     state.ante = ante;
     const engine = new TableEngine(state);
     engine.startPreFlop();
+    const firstPlayer = state.players[state.currentTurnSeatIndex];
+    if (firstPlayer) {
+      await this.timeoutQueue.add('player-timeout',
+        { tableId, userId: firstPlayer.id },
+        {
+          delay: 35000,
+          jobId: tableId,
+          removeOnComplete: true,
+          removeOnFail: true
+        }
+      );
+      state.actionDeadline = Date.now() + 30000;
+    }
     await this.redis.saveSnapShot(tableId, state);
     return engine.state;
   }

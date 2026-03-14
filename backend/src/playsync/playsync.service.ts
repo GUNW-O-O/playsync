@@ -170,59 +170,63 @@ export class PlaysyncService {
       });
     });
   }
+  public async processRebuy(tournamentId: string, userId: string) {
+    return 0;
+  }
 
   // 리바인
-  public async processRebuy(tournamentId: string, userId: string): Promise<number> {
-    const userStack = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
-      const session = await tx.tournament.findUnique({
-        where: { id: tournamentId },
-      });
-      const userInfo = await this.redis.getUserContext(tournamentId, userId);
-      if (!session || !user || !tournamentInfo || !userInfo) throw new Error('세션 혹은 유저 없음.');
+  // 리바인 관련 프론트엔드 구현 X 현재 무조건 return 0
+  // public async processRebuy(tournamentId: string, userId: string): Promise<number> {
+  //   const userStack = await this.prisma.$transaction(async (tx) => {
+  //     const user = await tx.user.findUnique({ where: { id: userId } });
+  //     const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
+  //     const session = await tx.tournament.findUnique({
+  //       where: { id: tournamentId },
+  //     });
+  //     const userInfo = await this.redis.getUserContext(tournamentId, userId);
+  //     if (!session || !user || !tournamentInfo || !userInfo) throw new Error('세션 혹은 유저 없음.');
 
-      const rebuyAmount = session.entryFee || 0;
-      const rebuyStack = session.startStack;
+  //     const rebuyAmount = session.entryFee || 0;
+  //     const rebuyStack = session.startStack;
 
-      if (user.points < rebuyAmount && tournamentInfo.isRegistrationOpen) return -1;
-      await tx.user.update({
-        where: { id: userId },
-        data: { points: { decrement: rebuyAmount } }
-      });
+  //     if (user.points < rebuyAmount && tournamentInfo.isRegistrationOpen) return -1;
+  //     await tx.user.update({
+  //       where: { id: userId },
+  //       data: { points: { decrement: rebuyAmount } }
+  //     });
 
-      await tx.pointTransaction.create({
-        data: {
-          userId,
-          amount: rebuyAmount * -1,
-          type: TransactionType.REBUY,
-          tournamentId,
-          description: `${session.name} 리바인 -${rebuyAmount}`
-        }
-      });
+  //     await tx.pointTransaction.create({
+  //       data: {
+  //         userId,
+  //         amount: rebuyAmount * -1,
+  //         type: TransactionType.REBUY,
+  //         tournamentId,
+  //         description: `${session.name} 리바인 -${rebuyAmount}`
+  //       }
+  //     });
 
-      await tx.tournament.update({
-        where: { id: tournamentId },
-        data: { totalBuyinAmount: { increment: session.entryFee } },
-      })
+  //     await tx.tournament.update({
+  //       where: { id: tournamentId },
+  //       data: { totalBuyinAmount: { increment: session.entryFee } },
+  //     })
 
-      await tx.tournamentParticipation.update({
-        where: { tournamentId_userId: { tournamentId, userId } },
-        data: { buyInCount: { increment: 1 } },
-      });
+  //     await tx.tournamentParticipation.update({
+  //       where: { tournamentId_userId: { tournamentId, userId } },
+  //       data: { buyInCount: { increment: 1 } },
+  //     });
 
-      await tx.tablePlayer.update({
-        where: { tableId_userId: { tableId: userInfo.tableId, userId } }, // tableId 관리 필요
-        data: { currentStack: { increment: rebuyStack } }
-      });
+  //     await tx.tablePlayer.update({
+  //       where: { tableId_userId: { tableId: userInfo.tableId, userId } }, // tableId 관리 필요
+  //       data: { currentStack: { increment: rebuyStack } }
+  //     });
 
-      return rebuyStack;
-    });
-    if (userStack !== 0) {
-      await this.redis.rebuyPlayer(tournamentId, userStack);
-    }
-    return userStack;
-  }
+  //     return rebuyStack;
+  //   });
+  //   if (userStack !== 0) {
+  //     await this.redis.rebuyPlayer(tournamentId, userStack);
+  //   }
+  //   return userStack;
+  // }
 
   async getDashboardInfo(tournamentId: string) {
     const info = await this.redis.getFullTournamentInfo(tournamentId);

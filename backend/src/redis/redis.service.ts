@@ -248,10 +248,9 @@ export class RedisService {
     const pipe = this.redis.pipeline();
     pipe.del(`tournament:${tournamentId}:info`)
     pipe.del(`tournament:${tournamentId}:user`)
-    pipe.del(`tournament:seat:${tournamentId}`)
+    pipe.del(`tournament:${tournamentId}:seat`);
     tables.forEach(t => {
       pipe.del(`table:state:${t}`);
-      pipe.del(`tournament:${t}:seat`);
     })
     await pipe.exec();
   }

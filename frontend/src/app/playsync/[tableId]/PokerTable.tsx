@@ -90,10 +90,10 @@ export default function PokerTable({ state, mySeatIndex }: { state: TableState |
 
               {player ? (
                 <>
-                  <span className="text-[9px] text-blue-400 font-bold">{i === mySeat ? `★ ME ${i + 1}번` : `${i + 1}번`}</span>
                   <span className={`text-[11px] font-black truncate w-full text-center px-1 ${i === mySeat ? 'text-rose-500' : 'text-slate-100'}`}>
                     {player.nickname}
                   </span>
+                  {/* <span className="text-[9px] text-blue-400 font-bold">{i === mySeat ? `★ ME ${i + 1}번` : `${i + 1}번`}</span> */}
                   <span className="text-yellow-300 text-[12px] font-black">{player.stack.toLocaleString()}</span>
 
                   {/* 베팅 금액 간격 조정 */}
