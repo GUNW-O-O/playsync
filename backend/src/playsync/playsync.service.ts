@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { TransactionType } from '@prisma/client';
+import { PlayerStatus, TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
 import { TableEngine } from 'src/game-engine/table-engine';
@@ -99,11 +99,12 @@ export class PlaysyncService {
   public async syncTableInventoryToDb(state: TableState) {
     const updates = state.players
       .filter(p => p !== null)
-      .map(p => this.prisma.tablePlayer.update({
-        where: { tableId_userId: { tableId: p.tableId, userId: p.id } },
+      .map(p => this.prisma.tablePlayer.updateMany({
+        where: { userId: p.id  },
         data: { currentStack: p.stack }
       }));
-    return await this.prisma.$transaction(updates) ? true : false;
+    const success = await this.prisma.$transaction(updates) ? true : false;
+    return success;
   }
 
   // 탈락
@@ -142,25 +143,31 @@ export class PlaysyncService {
     if (updated.success) {
       const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId);
       await this.redis.updateSeatBitmap(tournamentId, user.tableId, user.seatIndex, false);
-      if (activePlayerCount === 1) {
-        await this.tournamentFinished(tournamentId, userId)
+      if (activePlayerCount === 2) {
+        await this.tournamentFinished(tournamentId)
       }
     }
   }
 
   // 최후 1인
-  async tournamentFinished(tournamentId: string, userId: string) {
-    const user = await this.redis.getUserContext(tournamentId, userId);
+  async tournamentFinished(tournamentId: string) {
     const session = await this.prisma.tournament.findUnique({
       where: { id: tournamentId },
     });
+    const users = await this.prisma.tournamentParticipation.findFirst({
+      where: {
+        tournamentId: tournamentId,
+        status: PlayerStatus.PLAYING
+      }
+    });
+    if (!users) throw new Error('유저 없음.');
+    const winner = users[0]
     if (!session) throw new Error('세션 없음.');
-    if (!user) throw new Error('유저 없음.');
     await this.prisma.$transaction(async (tx) => {
       await tx.tournamentParticipation.update({
         where: {
           tournamentId_userId:
-            { tournamentId: tournamentId, userId }
+            { tournamentId: tournamentId, userId : winner.userId }
         },
         data: {
           finalPlace: 1,

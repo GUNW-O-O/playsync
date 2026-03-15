@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { TournamentStatus } from '@prisma/client';
+import { PlayerStatus, TournamentStatus } from '@prisma/client';
 import { CreateBlindStructureDto } from 'shared/dto/blind-structure.dto';
 import { CreateTournamentDto, UpdateTournamentDto } from 'shared/dto/tournament.dto';
 import { BlindField, Dashboard } from 'shared/types/tournamentMeta';
@@ -212,9 +212,15 @@ export class SessionService {
     if (game.totalPlayers < 2) {
       throw new Error('시작하기에 충분한 인원이 아닙니다.')
     }
-    await this.prismaService.tournament.update({
-      where: { id },
-      data: { startedAt: startedAt }
+    await this.prismaService.$transaction(async (tx) => {
+      await tx.tournament.update({
+        where: { id },
+        data: { startedAt: startedAt }
+      });
+      await tx.tournamentParticipation.updateMany({
+        where: { tournamentId: id },
+        data: { status: PlayerStatus.PLAYING }
+      });
     });
 
     const tableStates = game.tables
