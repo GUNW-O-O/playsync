@@ -103,7 +103,7 @@ export class PlaysyncService {
         where: { tableId_userId: { tableId: p.tableId, userId: p.id } },
         data: { currentStack: p.stack }
       }));
-    await this.prisma.$transaction(updates);
+    return await this.prisma.$transaction(updates) ? true : false;
   }
 
   // 탈락

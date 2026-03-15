@@ -169,12 +169,15 @@ export class DealerService {
         await this.playsync.eliminatePlayer(tournamentId, player.id);
       }
     }
-    await engine.initTable();
     // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
-    await this.redis.saveSnapShot(tableId, state);
-    await this.playsync.syncTableInventoryToDb(state);
-
-    return state;
+    const isTxSuccess = await this.playsync.syncTableInventoryToDb(state);
+    if (isTxSuccess) {
+      await engine.initTable();
+      await this.redis.saveSnapShot(tableId, state);
+      return state;
+    } else {
+      throw new Error('DB 동기화 실패');
+    }
   }
 
 
