@@ -75,12 +75,14 @@ export class PaymentService {
             }
           }
         });
+        const isOngoing = session.status === TournamentStatus.ONGOING;
         if (exsitingPlayer) throw new Error('이미 플레이어가 존재하는 좌석입니다');
         await this.user.paymentPoint(tx, userId, dto.tournamentId, session.name, session.entryFee);
         await tx.tournamentParticipation.create({
           data: {
             userId: userId,
             tournamentId: dto.tournamentId,
+            status: isOngoing ? 'PLAYING' : 'WAITING',
           }
         });
         await tx.tablePlayer.create({
@@ -102,7 +104,6 @@ export class PaymentService {
           }
         });
         let updatedState = await this.redisService.getSnapShot(dto.tableId);
-        const isOngoing = session.status === TournamentStatus.ONGOING;
 
         const newPlayer: TablePlayer = {
           id: userId,
