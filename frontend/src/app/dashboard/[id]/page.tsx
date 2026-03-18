@@ -114,9 +114,9 @@ export default function TournamentDashboard({ params }: { params: Promise<{ id: 
         <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800 flex flex-col justify-center">
           <span className="text-slate-500 font-bold uppercase text-lg">Entries / Active</span>
           <div className="text-5xl font-black mt-2">
-            <span className="text-white">{dashboard.totalPlayer}</span>
-            <span className="text-slate-600 mx-2">/</span>
             <span className="text-indigo-500">{dashboard.activePlayer}</span>
+            <span className="text-slate-600 mx-2">/</span>
+            <span className="text-white">{dashboard.totalPlayer}</span>
           </div>
         </div>
 

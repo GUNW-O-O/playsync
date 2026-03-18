@@ -32,7 +32,8 @@ export class PlaysyncService {
 
   async findMyTables(userId: string) {
     const players = await this.prisma.tablePlayer.findMany({
-      where: { userId: userId }
+      where: { userId: userId },
+      // include : {tournament: true}
     });
     if (!players) return null;
     return players;

@@ -65,6 +65,9 @@ export class PaymentService {
       if (session.status === TournamentStatus.FINISHED || !session.isRegistrationOpen) {
         throw new ConflictException('이미 종료된 세션입니다.');
       }
+      if(user.points < session.entryFee) {
+        throw new ConflictException('포인트가 부족합니다.');
+      }
       const result = await this.prismaService.$transaction(async (tx) => {
         // DB 최종 중복 체크
         const exsitingPlayer = await tx.tablePlayer.findUnique({
