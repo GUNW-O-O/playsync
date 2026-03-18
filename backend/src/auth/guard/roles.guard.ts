@@ -1,6 +1,5 @@
 import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { GqlExecutionContext } from '@nestjs/graphql';
 import { Role } from '@prisma/client';
 import { ROLES_KEY } from '../decorator/roles.decorator';
 
@@ -23,9 +22,6 @@ export class RolesGuard implements CanActivate {
   }
 
   private getRequest(context: ExecutionContext) {
-    if (context.getType<any>() === 'graphql') {
-      return GqlExecutionContext.create(context).getContext().req;
-    }
     return context.switchToHttp().getRequest();
   }
 }
