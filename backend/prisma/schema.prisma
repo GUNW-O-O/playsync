@@ -176,7 +176,6 @@ model TournamentParticipation {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  // 전체 토너먼트에서의 상태 (WAITING: 결제완료/미착석, PLAYING: 착석중, ELIMINATED: 탈락)
   status      PlayerStatus @default(WAITING)
   buyInCount  Int          @default(1)
   finalPlace  Int?

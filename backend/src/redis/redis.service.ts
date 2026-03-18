@@ -158,7 +158,6 @@ export class RedisService {
     return data ? JSON.parse(data) : null;
   }
 
-  // 아마 안쓸거같음.
   async setTournamentBlind(id: string, blindField: BlindField) {
     await this.redis.hset(`tournament:${id}:info`, 'blindField', JSON.stringify(blindField));
   }

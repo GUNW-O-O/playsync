@@ -79,12 +79,15 @@ export class DealerService {
     const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
     if (!blind) throw new Error('블라인드 정보가 없습니다.');
+    if(blind.isBreak) {
+      throw new Error('휴식 상태입니다.');
+    }
     if (!state || state.phase !== GamePhase.WAITING) {
       return;
     }
     const ante = blind.blindStructure[blind.currentBlindLv].ante;
     const smallBlind = blind.blindStructure[blind.currentBlindLv].sb;
-    state.actionDeadline = Date.now() + 30000;
+    state.actionDeadline = Date.now() + 31000;
     state.smallBlind = smallBlind;
     state.ante = ante;
     const engine = new TableEngine(state);
@@ -94,7 +97,7 @@ export class DealerService {
       await this.timeoutQueue.add('player-timeout',
         { tableId, userId: firstPlayer.id },
         {
-          delay: 35000,
+          delay: 31000,
           jobId: tableId,
           removeOnComplete: true,
           removeOnFail: true
