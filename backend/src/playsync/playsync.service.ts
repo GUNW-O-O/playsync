@@ -142,7 +142,7 @@ export class PlaysyncService {
     });
     // 토너먼트 캐시에서 생존자 -1
     if (updated.success) {
-      const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId);
+      const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId, updated.updSession.startStack, updated.updSession.entryFee);
       await this.redis.updateSeatBitmap(tournamentId, user.tableId, user.seatIndex, false);
       if (activePlayerCount === 2) {
         await this.tournamentFinished(tournamentId)

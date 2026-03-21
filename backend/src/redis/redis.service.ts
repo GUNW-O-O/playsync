@@ -111,14 +111,14 @@ export class RedisService {
     };
   }
 
-  private async recalculateAvgStack(tournamentId: string) {
+  private async recalculateAvgStack(tournamentId: string, startStack: number, entryFee: number) {
     const key = this.getInfoKey(tournamentId);
     const [totalBuyin, active] = await this.redis.hmget(key, 'totalBuyinAmount', 'activePlayer');
 
-    const totalBuyinNum = parseInt(totalBuyin || '0');
+    const totalChips = (parseInt(totalBuyin || '0') / entryFee) * startStack;
     const activeNum = parseInt(active || '1');
 
-    const newAvg = activeNum > 0 ? Math.floor(totalBuyinNum / activeNum) : 0;
+    const newAvg = activeNum > 0 ? Math.floor(totalChips / activeNum) : 0;
     await this.redis.hset(key, 'avgStack', newAvg);
   }
 
@@ -131,17 +131,17 @@ export class RedisService {
     await this.redis.hset(`tournament:${id}:info`, 'dashboard', JSON.stringify(dashboard));
   }
 
-  async eliminatedPlayer(tournamentId: string) {
+  async eliminatedPlayer(tournamentId: string, startStack: number, entryFee: number) {
     const key = this.getInfoKey(tournamentId);
-    await this.recalculateAvgStack(tournamentId);
+    await this.recalculateAvgStack(tournamentId, startStack, entryFee);
     return await this.redis.hincrby(key, 'activePlayer', -1);
   }
 
-  async rebuyPlayer(tournamentId: string, entryFee: number) {
+  async rebuyPlayer(tournamentId: string, entryFee: number, startStack: number) {
     const key = this.getInfoKey(tournamentId);
     await this.redis.hincrby(key, 'totalBuyinAmount', entryFee);
 
-    await this.recalculateAvgStack(tournamentId);
+    await this.recalculateAvgStack(tournamentId, startStack, entryFee);
   }
 
   async joinPlayer(tournamentId: string, entryFee: number) {
