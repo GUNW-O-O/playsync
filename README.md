@@ -138,8 +138,8 @@
   <p>레이즈, 올인, 폴드 일때 액션 가능한 플레이어가 없으므로 쇼다운페이즈로 진입합니다.</p>
   <img src="./img/18eliminated.gif" width="600" />
   <p>딜러가 승자결정시 상태수정, 0인 플레이어 탈락처리, 상태 기준으로 db업데이트, 0인플레이어를 상태에서 제거합니다.</p>
-  <img src="./img/19eliminated.png" width="600" />
-  <p>Redis에도 업데이트가 된 모습입니다.</p>
+  <!-- <img src="./img/19eliminated.png" width="600" />
+  <p>Redis에도 업데이트가 된 모습입니다.</p> -->
 </details>
 
 
