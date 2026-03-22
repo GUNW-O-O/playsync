@@ -1,34 +1,84 @@
+'use client'
+
+import { useState } from 'react';
+import { getTournamentsByShop, searchShops } from './action';
 import Link from 'next/link';
 
-async function getSessions() {
-  const res = await fetch(`${process.env.BACKEND_URL}/tournaments`, {
-    next: { revalidate: 10 } // 10초마다 갱신
-  });
-  return res.json();
-}
+export default function ShopSearchPage() {
+  const [query, setQuery] = useState('');
+  const [shops, setShops] = useState<{ id: string; name: string }[]>([]);
+  const [selectedShop, setSelectedShop] = useState<string | null>(null);
+  const [tournament, setTournament] = useState<any[]>([]);
 
-export default async function TournamentsPage() {
-  const sessions = await getSessions();
+  // 임시 테넌트 ID (실제로는 세션이나 URL 파라미터에서 가져옴)
+  const tenantId = "tenant_abc_123";
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const results = await searchShops(query);
+    // setShops(results);
+    setSelectedShop(null); // 검색 시 이전 선택 초기화
+  };
+
+  const handleShopClick = async (shopId: string) => {
+    setSelectedShop(shopId);
+    const data = await getTournamentsByShop(shopId);
+    // setTournament(data);
+  };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">참여 가능한 대회</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {sessions.map((s: any) => (
-          <Link href={`/tournaments/${s.id}`} key={s.id}>
-            <div className="border rounded-xl p-4 hover:shadow-md transition bg-white">
-              <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
-                {s.type}
-              </span>
-              <h2 className="text-lg text-gray-800 font-bold mt-2">{s.name}</h2>
-              <p className="text-sm text-gray-500 mt-1">{`${s.activePlayers} / ${s.totalPlayers} 명 참여중`}</p>
-              <div className="mt-4 flex justify-between items-center border-t pt-3">
-                <span className="font-bold text-orange-600">{s.entryFee.toLocaleString()}원</span>
-                <span className="text-xs text-gray-400">참여 가능</span>
-              </div>
-            </div>
-          </Link>
-        ))}
+    <div className="p-8 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">상점 검색</h1>
+      
+      {/* 검색창 */}
+      <form onSubmit={handleSearch} className="flex gap-2 mb-8">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="상점 이름을 입력하세요..."
+          className="flex-1 border p-2 rounded text-black"
+        />
+        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+          검색
+        </button>
+      </form>
+
+      <div className="grid grid-cols-2 gap-8">
+        {/* 상점 리스트 */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">검색 결과</h2>
+          <ul className="space-y-2">
+            {shops.map((shop) => (
+              <li 
+                key={shop.id}
+                onClick={() => handleShopClick(shop.id)}
+                className={`p-3 border rounded cursor-pointer hover:bg-gray-100 ${selectedShop === shop.id ? 'border-blue-500 bg-blue-50' : ''}`}
+              >
+                {shop.name}
+              </li>
+            ))}
+            {shops.length === 0 && <p className="text-gray-500">검색 결과가 없습니다.</p>}
+          </ul>
+        </div>
+
+        {/* 대회 리스트 */}
+        <div>
+          <h2 className="text-lg font-semibold mb-4">참여 가능 대회</h2>
+          {selectedShop ? (
+            <ul className="space-y-2">
+              {tournament.map((t) => (
+                <li key={t.id} className="p-3 bg-gray-50 border rounded">
+                  <p className="font-medium">{t.name}</p>
+                  <p className="text-sm text-gray-600">{t.activePlayers} / {t.totalPlayers}</p>
+                  <Link href={`/tournaments/${t.id}`} className="text-blue-500 hover:underline">참여하기</Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">상점을 선택해주세요.</p>
+          )}
+        </div>
       </div>
     </div>
   );

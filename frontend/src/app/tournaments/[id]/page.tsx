@@ -38,14 +38,14 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
                 TABLE: {tableId.slice(0, 8)} {/* ID가 너무 기니 앞부분만 출력 */}
               </div>
 
-              <div className="grid grid-cols-5 gap-4 relative">
+              <div className="grid grid-cols-9 gap-3 relative">
                 {seats.map((isOccupied: boolean, idx: number) => (
                   <button
                     key={idx}
                     disabled={isOccupied}
                     onClick={() => setSelectedSeat({ tableId, index: idx })}
                     className={`
-                h-12 w-12 rounded-full border-2 flex items-center justify-center font-bold transition
+                h-10 w-10 rounded-full border-2 flex items-center justify-center font-bold transition
                 ${isOccupied ? 'bg-red-200 border-red-400 text-red-700 cursor-not-allowed' :
                         selectedSeat?.index === idx && selectedSeat?.tableId === tableId
                           ? 'bg-yellow-400 border-yellow-600 scale-110 shadow-lg'
@@ -64,7 +64,7 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
       {selectedSeat && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-2xl flex justify-between items-center">
           <div>
-            <span className="text-sm text-gray-500">선택한 좌석</span>
+            <span className="text-sm text-gray-500">{tournament.name}</span>
             <p className="font-bold">테이블 {selectedSeat.tableId.slice(0,8)} - {selectedSeat.index + 1}번석</p>
           </div>
           <button

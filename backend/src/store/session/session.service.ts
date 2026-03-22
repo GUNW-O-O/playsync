@@ -298,5 +298,12 @@ export class SessionService {
     });
   }
 
+  // 플레이어 자리 옮기기
+  async manualMovingPlayer() {
+    // 플레이어끼리 위치변경
+
+    // 빈자리에 채우기
+  }
+
 
 }

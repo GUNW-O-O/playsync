@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { CreateStoreDto, UpdateStoreDto } from 'shared/dto/store.dto';
 import { Roles } from 'src/auth/decorator/roles.decorator';
@@ -11,6 +11,12 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 @Roles(Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
 export class StoreController {
   constructor(private storeService: StoreService) { };
+
+  @Get('/search')
+  @Roles(Role.USER)
+  async searchStore(@Query('id') id: string) {
+    return this.storeService.searchStore(id);
+  }
 
   @Post()
   async createStore(@Req() req, @Body() dto: CreateStoreDto) {
