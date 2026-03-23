@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { DealerService } from './dealer.service';
 import { DealerDto } from 'shared/dto/dealer.dto';
 import { SessionService } from 'src/store/session/session.service';
@@ -9,9 +9,9 @@ export class DealerController {
     private readonly sessionService: SessionService,
   ) { }
 
-  @Get()
-  async getAvailableSessions() {
-    return await this.sessionService.getGameSessionWithTables();
+  @Get('/:id')
+  async getTournamentWithTables(@Param('id') tournamentId: string) {
+    return await this.sessionService.getGameSessionWithTables(tournamentId);
   }
 
 

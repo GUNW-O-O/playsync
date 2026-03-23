@@ -19,9 +19,14 @@ export class SessionController {
   }
 
   @Get(':storeId')
-  @Roles(Role.USER, Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
   async findAll(@Param('storeId') storeId: string) {
     return this.sessionService.getStoreAllSessions(storeId);
+  }
+
+  @Get('/search/:storeId')
+  @Roles(Role.USER, Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
+  async findAvailableSessions(@Param('storeId') storeId: string) {
+    return this.sessionService.getStoreAvailableSessions(storeId);
   }
 
   @Patch(':id')

@@ -35,7 +35,7 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
           return (
             <div key={tableId} className="bg-gray-100 p-6 rounded-3xl border-4 border-gray-300 relative overflow-hidden">
               <div className="text-center font-bold text-gray-400 mb-4 italic">
-                TABLE: {tableId.slice(0, 8)} {/* ID가 너무 기니 앞부분만 출력 */}
+                {tournament.tables.find((t: any) => t.id === tableId)?.tableOrder}번 테이블
               </div>
 
               <div className="grid grid-cols-9 gap-3 relative">
@@ -65,7 +65,9 @@ export default function TournamentDetailPage({ params }: { params: Promise<{ id:
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t shadow-2xl flex justify-between items-center">
           <div>
             <span className="text-sm text-gray-500">{tournament.name}</span>
-            <p className="font-bold">테이블 {selectedSeat.tableId.slice(0,8)} - {selectedSeat.index + 1}번석</p>
+            <p className="font-bold">{
+              tournament.tables.find((t: any) => t.id === selectedSeat.tableId)?.tableOrder
+            }번 테이블 - {selectedSeat.index + 1}번석</p>
           </div>
           <button
             onClick={() => joinTournament(id, selectedSeat.tableId, selectedSeat.index)}

@@ -7,11 +7,6 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
-  @Get()
-  async getAvailableSessions() {
-    return await this.paymentService.getAvailableSessions();
-  }
-  
   @Get(':id')
   async getTournamentInfo(@Param('id') id: string) {
     return await this.paymentService.getTournamentInfo(id);

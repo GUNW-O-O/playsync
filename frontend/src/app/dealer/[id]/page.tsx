@@ -1,22 +1,23 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 
-export default function DealerAuthPage() {
-  const [tournaments, setTournaments] = useState([]);
-  const [selectedTournament, setSelectedTournament] = useState<any>(null);
+export default function DealerAuthPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = use(params);
+  const tournamentId = resolvedParams.id;
+  const [tournament, setTournament] = useState<any>(null);
   const [selectedTable, setSelectedTable] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/dealer`)
+    fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/dealer/${tournamentId}`)
       .then(res => res.json())
       .then(data => {
-        setTournaments(data);
+        setTournament(data);
         setLoading(false);
       })
       .catch(err => {
@@ -26,7 +27,7 @@ export default function DealerAuthPage() {
   }, []);
 
   const handleAuth = async () => {
-    if (!selectedTournament) {
+    if (!tournament) {
       alert('대회를 먼저 선택해주세요.');
       return;
     }
@@ -34,7 +35,7 @@ export default function DealerAuthPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        tournamentId: selectedTournament.id,
+        tournamentId: tournamentId,
         tableId: selectedTable,
         otp: Number(otp)
       })
@@ -42,7 +43,7 @@ export default function DealerAuthPage() {
 
     if (res.ok) {
       const { accessToken } = await res.json();
-      Cookies.set('dealerToken', accessToken, { 
+      Cookies.set('dealerToken', accessToken, {
         expires: 1,
         path: '/',
         sameSite: 'lax',
@@ -61,35 +62,20 @@ export default function DealerAuthPage() {
     <div className="p-8 max-w-md mx-auto space-y-6">
       <h1 className="text-2xl font-bold">딜러 테이블 인증</h1>
 
-      {/* 대회 선택 */}
-      <select
-        onChange={(e) => {
-          const tournament = tournaments.find((t: any) => t.id === e.target.value);
-          setSelectedTournament(tournament);
-        }}
-        className="w-full p-3 border rounded-xl"
-        value={selectedTournament?.id || ""}
-      >
-        <option value="">대회 선택</option>
-        {tournaments.map((t: any) => (
-          <option key={t.id} value={t.id}>{t.name}</option>
-        ))}
-      </select>
+      <h3 className="text-xl font-bold">{tournament.name}</h3>
 
-      {selectedTournament && (
         <select
           onChange={(e) => setSelectedTable(e.target.value)}
           className="w-full p-3 border rounded-xl"
         >
           <option value="">테이블 선택</option>
           {/* ?. 을 사용하여 tables가 없을 경우를 대비합니다 */}
-          {selectedTournament.tables?.map((table: any) => (
+          {tournament?.tables?.map((table: any) => (
             <option key={table.id} value={table.id}>
               {table.tableOrder}번 테이블
             </option>
           ))}
         </select>
-      )}
 
       <input
         type="number"
@@ -102,9 +88,9 @@ export default function DealerAuthPage() {
       <button
         onClick={handleAuth}
         disabled={!selectedTable || !otp} // 버튼 활성화 조건 추가
-        className="w-full bg-black text-white py-4 rounded-xl font-bold disabled:bg-gray-400"
+        className="w-full bg-blue-500 text-white py-4 rounded-xl font-bold disabled:bg-gray-400"
       >
-        테이스팅 시작 (인증)
+        인증
       </button>
     </div>
   );

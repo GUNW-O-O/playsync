@@ -43,7 +43,7 @@ export async function searchShops(query: string) {
 }
 
 export async function getTournamentsByShop(shopId: string) {
-  const res = await fetch(`${process.env.BACKEND_URL}/store/sessions/${shopId}`, {
+  const res = await fetch(`${process.env.BACKEND_URL}/store/sessions/search/${shopId}`, {
     method: 'GET',
     headers: {
       'Content-Type': 'application/json',

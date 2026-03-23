@@ -11,19 +11,18 @@ export default function ShopSearchPage() {
   const [tournament, setTournament] = useState<any[]>([]);
 
   // 임시 테넌트 ID (실제로는 세션이나 URL 파라미터에서 가져옴)
-  const tenantId = "tenant_abc_123";
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     const results = await searchShops(query);
-    // setShops(results);
+    setShops(results);
     setSelectedShop(null); // 검색 시 이전 선택 초기화
   };
 
   const handleShopClick = async (shopId: string) => {
     setSelectedShop(shopId);
     const data = await getTournamentsByShop(shopId);
-    // setTournament(data);
+    setTournament(data);
   };
 
   return (
@@ -71,7 +70,8 @@ export default function ShopSearchPage() {
                 <li key={t.id} className="p-3 bg-gray-50 border rounded">
                   <p className="font-medium">{t.name}</p>
                   <p className="text-sm text-gray-600">{t.activePlayers} / {t.totalPlayers}</p>
-                  <Link href={`/tournaments/${t.id}`} className="text-blue-500 hover:underline">참여하기</Link>
+                  <Link href={`/tournaments/${t.id}`} className="text-blue-500 hover:underline">플레이어참가</Link>
+                  <Link href={`/dealer/${t.id}`} className="text-blue-500 hover:underline">딜러참가</Link>
                 </li>
               ))}
             </ul>

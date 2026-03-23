@@ -16,24 +16,13 @@ export class PaymentService {
 
   ) { };
 
-  // 상점별 기능 개발시
-  // async getAvailableSessions(storeId: string) {
-  //   const sessions = await this.session.getStoreAllSessions(storeId);
-  //   return sessions.filter(session => session.status === TournamentStatus.ONGOING
-  //     || session.status === TournamentStatus.PENDING
-  //   );
-  // }
-
-  async getAvailableSessions() {
-    return await this.session.getAllSessions();
-  }
-
   async getTournamentInfo(tournamentId: string) {
     const tournament = await this.session.getGameSession(tournamentId);
     let seatStatus = await this.redisService.getTournamentTables(tournamentId);
     if(!seatStatus || seatStatus.length === 0) {
       const session = await this.prismaService.tournament.findUnique({
         where: { id: tournamentId },
+        
         include : {
           tables : true
         }

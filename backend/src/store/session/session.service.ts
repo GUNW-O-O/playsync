@@ -15,21 +15,6 @@ export class SessionService {
     private redis: RedisService,
   ) { };
 
-  async getGameSessionWithTables() {
-    return await this.prismaService.tournament.findMany({
-      where: {
-        status: {
-          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
-        }
-      },
-      include: {
-        tables: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
   async getGameSession(id: string) {
     return await this.prismaService.tournament.findUnique({
       where: { id },
@@ -40,14 +25,6 @@ export class SessionService {
         blindStructure: true,
       }
     });
-  }
-
-  async getDetailSeatStatus(id: string) {
-    const tables = await this.prismaService.table.findMany({
-      where: { id },
-      include: { tablePlayers: true },
-    });
-    return tables;
   }
 
   // 전체 토너먼트 정보
@@ -63,6 +40,40 @@ export class SessionService {
       },
     });
   }
+  
+  // 딜러인증시 테이블도 포함
+  async getGameSessionWithTables(tournamentId: string) {
+    return await this.prismaService.tournament.findMany({
+      where: {
+        id: tournamentId,
+        status: {
+          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
+        }
+      },
+      include: {
+        tables: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+  
+  // 해당 매장의 참가가능 토너먼트 정보
+  async getStoreAvailableSessions(storeId: string) {
+    return await this.prismaService.tournament.findMany({
+      where: {
+        storeId: storeId,
+        status: {
+          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
+        }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   // 해당 매장의 전체 토너먼트 정보
   async getStoreAllSessions(storeId: string) {
     return await this.prismaService.tournament.findMany({
