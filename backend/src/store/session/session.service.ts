@@ -27,23 +27,10 @@ export class SessionService {
     });
   }
 
-  // 전체 토너먼트 정보
-  async getAllSessions() {
-    return await this.prismaService.tournament.findMany({
-      where: {
-        status: {
-          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
-        }
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
   
   // 딜러인증시 테이블도 포함
   async getGameSessionWithTables(tournamentId: string) {
-    return await this.prismaService.tournament.findMany({
+    return await this.prismaService.tournament.findUnique({
       where: {
         id: tournamentId,
         status: {
@@ -52,9 +39,6 @@ export class SessionService {
       },
       include: {
         tables: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
       },
     });
   }

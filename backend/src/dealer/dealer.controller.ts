@@ -11,7 +11,10 @@ export class DealerController {
 
   @Get('/:id')
   async getTournamentWithTables(@Param('id') tournamentId: string) {
-    return await this.sessionService.getGameSessionWithTables(tournamentId);
+    const data = await this.sessionService.getGameSessionWithTables(tournamentId);
+    if (!data) throw new Error('세션 없음');
+    const {dealerOtp, ...rest} = data;
+    return rest;
   }
 
 

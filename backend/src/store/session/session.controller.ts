@@ -26,7 +26,9 @@ export class SessionController {
   @Get('/search/:storeId')
   @Roles(Role.USER, Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
   async findAvailableSessions(@Param('storeId') storeId: string) {
-    return this.sessionService.getStoreAvailableSessions(storeId);
+    const data = await this.sessionService.getStoreAvailableSessions(storeId);
+    if(!data) throw new Error('세션 없음');
+    return data.map(({ dealerOtp, ...rest }) => rest);
   }
 
   @Patch(':id')
