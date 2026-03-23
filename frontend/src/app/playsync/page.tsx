@@ -43,8 +43,8 @@ export default async function PlaySyncMain() {
           >
             <div className="flex justify-between items-center">
               <div>
-                <p className="font-bold text-lg">토너먼트 이름</p>
-                <p className="text-sm text-gray-500">번 테이블 - {item.seatPosition + 1}번석</p>
+                <p className="font-bold text-gray-500 text-lg">{item.tournament.name}</p>
+                <p className="text-sm text-gray-500">{item.table.tableOrder}번 테이블 - {item.seatPosition + 1}번석</p>
               </div>
               <span className="text-indigo-600 font-bold">입장하기 →</span>
             </div>

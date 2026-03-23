@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PlayerStatus, TransactionType } from '@prisma/client';
+import { PlayerStatus } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
 import { TableEngine } from 'src/game-engine/table-engine';
@@ -33,7 +33,18 @@ export class PlaysyncService {
   async findMyTables(userId: string) {
     const players = await this.prisma.tablePlayer.findMany({
       where: { userId: userId },
-      // include : {tournament: true}
+      include : {
+        tournament: {
+          select: {
+            name: true,
+          }
+        },
+        table: {
+          select: {
+            tableOrder: true,
+          }
+        }
+      }
     });
     if (!players) return null;
     return players;

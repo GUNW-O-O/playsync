@@ -10,7 +10,10 @@ import { RedisService } from 'src/redis/redis.service';
   cors: true
 })
 export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  // 테이블별 소켓관리
+
+  // 토너먼트 전체 (예매, 공지용)
+  private tournamentSessions = new Map<string, Set<WebSocket>>();
+  // 개별 테이블 (게임 플레이용)
   private tableSessions = new Map<string, Set<WebSocket>>();
   constructor(
     private readonly dealer: DealerService,
@@ -19,36 +22,48 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly jwtService: JwtService,
   ) { }
 
+  private addToMap(map: Map<string, Set<WebSocket>>, id: string, client: WebSocket) {
+    let sessions = map.get(id);
+    if (!sessions) {
+      sessions = new Set();
+      map.set(id, sessions);
+    }
+    sessions.add(client);
+  }
+
   // 1. 연결 시 토큰 검증 및 테이블 입장
   async handleConnection(client: WebSocket, request: any) {
     try {
       const url = new URL(request.url, `http://${request.headers['host']}`);
       const tableId = url.searchParams.get('tableId');
       const token = url.searchParams.get('token');
+      const tournamentId = url.searchParams.get('tournamentId');
 
-      if (!tableId || !token) throw new Error('필수 정보 누락');
-
+      if (!token) throw new Error('필수 정보 누락');
       // JWT 검증 (딜러 토큰이든 유저 토큰이든 JwtService가 해석)
       const payload = await this.jwtService.verifyAsync(token);
 
       // 소켓 객체에 유저 정보 저장 (나중에 액션 시 사용)
       (client as any).userId = payload.sub;
       (client as any).role = payload.role;
-      (client as any).tableId = tableId || payload.tableId;
-      (client as any).tournamentId = payload.tournamentId || null;
 
-      let sessions = this.tableSessions.get(tableId);
-      if (!sessions) {
-        sessions = new Set<WebSocket>();
-        this.tableSessions.set(tableId, sessions);
+      // 1. 자리 예매 시 (토너먼트 진입 전)
+      if (tournamentId && !tableId) {
+        (client as any).tournamentId = tournamentId;
+        this.addToMap(this.tournamentSessions, tournamentId, client);
+        console.log(`User ${payload.sub} joined Reservation Room: ${tournamentId}`);
+        return; // 예매 로직만 수행하므로 여기서 종료
       }
-      // 이제 sessions는 무조건 Set<WebSocket> 타입으로 고정
-      sessions.add(client);
 
-      console.log(`User ${payload.sub} (${payload.role}) joined Table ${tableId}`);
+      // 2. 테이블 진입 시 (게임 시작 후)
+      if (tableId) {
+        (client as any).tableId = tableId;
+        this.addToMap(this.tableSessions, tableId, client);
 
-      const updatedState = await this.redis.getSnapShot(tableId);
-      await this.broadcastToTable(tableId, 'renderGame', updatedState);
+        const updatedState = await this.redis.getSnapShot(tableId);
+        this.broadcastToTable(tableId, 'renderGame', updatedState);
+        console.log(`User ${payload.sub} joined Game Table: ${tableId}`);
+      }
 
     } catch (err) {
       console.error('연결 거부:', err.message);
@@ -59,12 +74,25 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // 2. 연결 종료 시 세션 제거
   handleDisconnect(client: WebSocket) {
     const tableId = (client as any).tableId;
+    const tournamentId = (client as any).tournamentId;
+
+    // 테이블 세션 제거
     if (tableId && this.tableSessions.has(tableId)) {
-      this.tableSessions.get(tableId)?.delete(client);
-      if (this.tableSessions.get(tableId)?.size === 0) {
+      const sessions = this.tableSessions.get(tableId);
+      sessions?.delete(client);
+      if (sessions?.size === 0) {
         this.tableSessions.delete(tableId);
       } else {
         console.log(`User left Table ${tableId}`);
+      }
+    }
+    if (tournamentId && this.tournamentSessions.has(tournamentId)) {
+      const sessions = this.tournamentSessions.get(tournamentId);
+      sessions?.delete(client);
+      if (sessions?.size === 0) {
+        this.tournamentSessions.delete(tournamentId);
+      } else {
+        console.log(`User left Tournament Room ${tournamentId}`);
       }
     }
   }
@@ -75,6 +103,20 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (sessions) {
       const message = JSON.stringify({ event, data });
       sessions.forEach(s => s.send(message));
+    }
+  }
+  // 토너먼트 브로드캐스트 유틸리티
+  private broadcastToTournament(tournamentId: string, event: string, data: any) {
+    const sessions = this.tournamentSessions.get(tournamentId);
+    if (sessions) {
+      const message = JSON.stringify({ event, data });
+      sessions.forEach(s => {
+        if (s.readyState === WebSocket.OPEN) {
+          s.send(message);
+        } else {
+          sessions.delete(s);
+        }
+      });
     }
   }
 
@@ -125,6 +167,11 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @OnEvent('game.state.updated')
   handleGameStateUpdated(payload: { tableId: string; state: any }) {
     this.broadcastToTable(payload.tableId, 'renderGame', payload.state);
+  }
+
+  @OnEvent('SEAT_LIST_UPDATED')
+  handleSeatListUpdated(payload: { tournamentId: string; state: any }) {
+    this.broadcastToTournament(payload.tournamentId, 'renderSeatList', payload.state);
   }
 
 

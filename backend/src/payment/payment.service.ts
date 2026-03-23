@@ -1,4 +1,5 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TournamentStatus } from '@prisma/client';
 import { PayMentDto } from 'shared/dto/payment.dto';
 import { GamePhase, TablePlayer } from 'src/game-engine/types';
@@ -13,7 +14,7 @@ export class PaymentService {
     private session: SessionService,
     private prismaService: PrismaService,
     private redisService: RedisService,
-
+    private readonly eventEmitter: EventEmitter2,
   ) { };
 
   // 가맹점 이름으로 검색
@@ -162,6 +163,11 @@ export class PaymentService {
         if (cnt === 7) {
           await this.session.createTable(dto.tournamentId);
         }
+        const tableStatus = await this.redisService.getTournamentTables(dto.tournamentId);
+        this.eventEmitter.emit('SEAT_LIST_UPDATED', {
+          tournamentId: dto.tournamentId, 
+          state : tableStatus
+        })
       }
       return result.updatedState;
     } finally {
