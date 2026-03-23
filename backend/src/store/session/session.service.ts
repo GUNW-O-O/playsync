@@ -43,21 +43,6 @@ export class SessionService {
     });
   }
   
-  // 해당 매장의 참가가능 토너먼트 정보
-  async getStoreAvailableSessions(storeId: string) {
-    return await this.prismaService.tournament.findMany({
-      where: {
-        storeId: storeId,
-        status: {
-          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
-        }
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
-
   // 해당 매장의 전체 토너먼트 정보
   async getStoreAllSessions(storeId: string) {
     return await this.prismaService.tournament.findMany({

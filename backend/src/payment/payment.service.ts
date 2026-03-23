@@ -16,16 +16,38 @@ export class PaymentService {
 
   ) { };
 
+  // 가맹점 이름으로 검색
+  async searchStore(name: string) {
+    return await this.prismaService.store.findMany({
+      where: { name: { contains: name } }
+    });
+  }
+
+  // 해당 매장의 참가가능 토너먼트 정보
+  async getStoreAvailableSessions(storeId: string) {
+    return await this.prismaService.tournament.findMany({
+      where: {
+        storeId: storeId,
+        status: {
+          in: [TournamentStatus.ONGOING, TournamentStatus.PENDING],
+        }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
   async getTournamentInfo(tournamentId: string) {
     const data = await this.session.getGameSession(tournamentId);
     if (!data) throw new ConflictException('잘못된 세션 ID 입니다.');
-    const {dealerOtp, ...tournament} = data;
+    const { dealerOtp, ...tournament } = data;
     let seatStatus = await this.redisService.getTournamentTables(tournamentId);
-    if(!seatStatus || seatStatus.length === 0) {
+    if (!seatStatus || seatStatus.length === 0) {
       const session = await this.prismaService.tournament.findUnique({
         where: { id: tournamentId },
-        include : {
-          tables : true
+        include: {
+          tables: true
         }
       });
       if (!session || !session.tables) throw new ConflictException('잘못된 세션 ID 입니다.');
@@ -55,7 +77,7 @@ export class PaymentService {
       if (session.status === TournamentStatus.FINISHED || !session.isRegistrationOpen) {
         throw new ConflictException('이미 종료된 세션입니다.');
       }
-      if(user.points < session.entryFee) {
+      if (user.points < session.entryFee) {
         throw new ConflictException('포인트가 부족합니다.');
       }
       const result = await this.prismaService.$transaction(async (tx) => {

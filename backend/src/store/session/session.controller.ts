@@ -23,14 +23,6 @@ export class SessionController {
     return this.sessionService.getStoreAllSessions(storeId);
   }
 
-  @Get('/search/:storeId')
-  @Roles(Role.USER, Role.STORE_ADMIN, Role.PLATFORM_ADMIN)
-  async findAvailableSessions(@Param('storeId') storeId: string) {
-    const data = await this.sessionService.getStoreAvailableSessions(storeId);
-    if(!data) throw new Error('세션 없음');
-    return data.map(({ dealerOtp, ...rest }) => rest);
-  }
-
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateTournamentDto) {
     return this.sessionService.updateSession(id, dto);

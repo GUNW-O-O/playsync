@@ -27,14 +27,6 @@ export class StoreService {
     return store;
   }
 
-  // 가맹점 이름으로 검색
-  async searchStore(name: string) {
-    return await this.prisma.store.findMany({
-      where : { name : { contains : name } }
-    });
-  }
-
-
   async createStore(ownerId: string, dto: CreateStoreDto) {
     return this.prisma.store.create({
       data: {

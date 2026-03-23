@@ -28,29 +28,3 @@ export async function joinTournament(tournamentId: string, tableId: string, seat
   // 결제/참가 성공 시 나의 대회 현황 페이지 등으로 이동
   redirect(`/playsync`);
 }
-
-export async function searchShops(query: string) {
-  const res = await fetch(`${process.env.BACKEND_URL}/store/search?id=${query}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  if(res.ok) {
-    const data = await res.json();
-    return data;
-  }
-}
-
-export async function getTournamentsByShop(shopId: string) {
-  const res = await fetch(`${process.env.BACKEND_URL}/store/sessions/search/${shopId}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-  if(res.ok) {
-    const data = await res.json();
-    return data;
-  }
-}

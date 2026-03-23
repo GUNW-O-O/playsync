@@ -12,12 +12,6 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 export class StoreController {
   constructor(private storeService: StoreService) { };
 
-  @Get('/search')
-  @Roles(Role.USER)
-  async searchStore(@Query('id') id: string) {
-    return this.storeService.searchStore(id);
-  }
-
   @Post()
   async createStore(@Req() req, @Body() dto: CreateStoreDto) {
     return this.storeService.createStore(req.user.userId, dto);
