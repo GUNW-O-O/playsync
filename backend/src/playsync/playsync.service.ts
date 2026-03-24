@@ -119,7 +119,7 @@ export class PlaysyncService {
     return success;
   }
 
-  // 탈락
+  // 1인 탈락
   public async eliminatePlayer(tournamentId: string, userId: string) {
     const user = await this.redis.getUserContext(tournamentId, userId);
     if (!user) throw new Error('유저 없음.');
@@ -151,7 +151,7 @@ export class PlaysyncService {
       });
       return { success: true, updSession };
     });
-    // 토너먼트 캐시에서 생존자 -1
+    // 토너먼트 redis에서 생존자 -1
     if (updated.success) {
       const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId, updated.updSession.startStack, updated.updSession.entryFee);
       await this.redis.updateSeatBitmap(tournamentId, user.tableId, user.seatIndex, false);
