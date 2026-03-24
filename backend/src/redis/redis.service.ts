@@ -77,6 +77,9 @@ export class RedisService {
     await this.redis.hset(
       key,
       // Dashboard 필드 평탄화
+      'tournamentName', dashboard.tournamentName,
+      'entryFee', dashboard.entryFee,
+      'startStack', dashboard.startStack,
       'isRegistrationOpen', dashboard.isRegistrationOpen ? 1 : 0,
       'totalPlayer', dashboard.totalPlayer,
       'activePlayer', dashboard.activePlayer,
@@ -106,6 +109,9 @@ export class RedisService {
         totalBuyinAmount: parseInt(raw.totalBuyinAmount || '0'),
         rebuyUntil: parseInt(raw.rebuyUntil || '0'),
         avgStack: parseInt(raw.avgStack || '0'),
+        tournamentName: raw.tournamentName || '',
+        entryFee: parseInt(raw.entryFee || '0'),
+        startStack: parseInt(raw.startStack || '0'),
       },
       blindField: blindField,
     };

@@ -79,7 +79,7 @@ export class DealerService {
     const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
     if (!blind) throw new Error('블라인드 정보가 없습니다.');
-    if(blind.isBreak) {
+    if (blind.isBreak) {
       throw new Error('휴식 상태입니다.');
     }
     if (!state || state.phase !== GamePhase.WAITING) {
@@ -160,11 +160,24 @@ export class DealerService {
 
   async resolveWinners(tableId: string, tournamentId: string, winnerUserIds: string[]) {
     const state = await this.redis.getSnapShot(tableId);
-    if (!state) throw new Error('예기치 못한 오류가 발생했습니다.')
+    const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
+    if (!state || !tournamentInfo) throw new Error('예기치 못한 오류가 발생했습니다.')
+    // TODO : 보드하이 무승부로직
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
-    const engine = new TableEngine(state, async (playerId: string) => {
-      return await this.playsync.processRebuy(tournamentId, tableId, playerId);
-    });
+    const rebuyCallback = tournamentInfo.isRegistrationOpen
+      ? async (playerId: string) => {
+        return await this.playsync.processRebuy(
+          tournamentId,
+          tableId,
+          playerId,
+          tournamentInfo.entryFee,
+          tournamentInfo.startStack,
+          tournamentInfo.tournamentName
+        );
+      }
+      : undefined;
+
+    const engine = new TableEngine(state, rebuyCallback);
     await engine.resolveWinner(winnerUserIds);
     for (const player of engine.state.players) {
       if (player && player.stack <= 0) {

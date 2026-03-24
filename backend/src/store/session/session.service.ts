@@ -178,7 +178,10 @@ export class SessionService {
       activePlayer: game.activePlayers,
       totalBuyinAmount: game.entryFee * game.totalPlayers,
       rebuyUntil: game.rebuyUntil,
-      avgStack: game.avgStack
+      avgStack: game.avgStack,
+      entryFee: game.entryFee,
+      tournamentName: game.name,
+      startStack: game.startStack,
     }
     const blindField: BlindField = {
       isBreak: false,

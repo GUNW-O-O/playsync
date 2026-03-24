@@ -193,7 +193,15 @@ export class PlaysyncService {
   // public async processRebuy(tournamentId: string, userId: string) {
   //   return 0;
   // }
-  public async processRebuy(tournamentId: string, tableId: string, userId: string): Promise<number> {
+  public async processRebuy(tournamentId: string, tableId: string, userId: string, entryFee: number, startStack: number, tournamentName: string): Promise<number> {
+    const userPoints = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { points: true }
+    });
+    if (!userPoints) throw new Error('플레이어 정보 오류');
+    if (userPoints.points < entryFee) {
+      return 0;
+    }
     return new Promise(async (resolve) => {
       let isResolved = false;
       const timeoutMs = 15000;
@@ -201,7 +209,10 @@ export class PlaysyncService {
       this.eventEmitter.emit('rebuy.request.sent', {
         userId,
         tableId,
-        deadline: Date.now() + timeoutMs
+        deadline: Date.now() + timeoutMs,
+        userPoints,
+        entryFee,
+        tournamentName,
       });
 
       // [타이머] 15초 내 응답 없으면 자동 취소 (0 반환)
@@ -222,7 +233,7 @@ export class PlaysyncService {
           if (accept) {
             try {
               // 수락 시 기존 트랜잭션 로직 실행
-              const resultStack = await this.executeRebuyTransaction(tournamentId, userId);
+              const resultStack = await this.executeRebuyTransaction(tournamentId, tableId, userId, entryFee, startStack, tournamentName);
               resolve(resultStack);
             } catch (error) {
               console.error('리바인 트랜잭션 실패:', error.message);
@@ -237,40 +248,29 @@ export class PlaysyncService {
   }
 
   // 리바인 트랜잭션
-  public async executeRebuyTransaction(tournamentId: string, userId: string): Promise<number> {
-    const userStack = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({ where: { id: userId } });
-      const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
-      const session = await tx.tournament.findUnique({
-        where: { id: tournamentId },
-      });
-      const userInfo = await this.redis.getUserContext(tournamentId, userId);
-      if (!session || !user || !tournamentInfo || !userInfo) throw new Error('세션 혹은 유저 없음.');
-
-      const rebuyAmount = session.entryFee || 0;
-      const rebuyStack = session.startStack;
-
-      if (user.points < rebuyAmount && tournamentInfo.isRegistrationOpen) {
-        return { success: false, session };
-      }
-      await tx.user.update({
-        where: { id: userId },
-        data: { points: { decrement: rebuyAmount } }
-      });
+  public async executeRebuyTransaction(tournamentId: string, tableId: string, userId: string, entryFee: number, startStack: number, tournamentName: string): Promise<number> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updatedUser = await tx.user.update({
+        where: {
+          id: userId,
+          points: { gte: entryFee }
+        },
+        data: { points: { decrement: entryFee } }
+      }).catch(() => { throw new Error('포인트 부족 혹은 유저 없음'); });
 
       await tx.pointTransaction.create({
         data: {
           userId,
-          amount: rebuyAmount * -1,
+          amount: entryFee * -1,
           type: TransactionType.REBUY,
           tournamentId,
-          description: `${session.name} 리바인 -${rebuyAmount}`
+          description: `${tournamentName} 리바인 -${entryFee}`
         }
       });
 
       await tx.tournament.update({
         where: { id: tournamentId },
-        data: { totalBuyinAmount: { increment: session.entryFee } },
+        data: { totalBuyinAmount: { increment: entryFee } },
       })
 
       await tx.tournamentParticipation.update({
@@ -279,16 +279,16 @@ export class PlaysyncService {
       });
 
       await tx.tablePlayer.update({
-        where: { tableId_userId: { tableId: userInfo.tableId, userId } }, // tableId 관리 필요
-        data: { currentStack: { increment: rebuyStack } }
+        where: { tableId_userId: { tableId: tableId, userId } }, // tableId 관리 필요
+        data: { currentStack: { increment: startStack } }
       });
 
-      return { success: true, session };
+      return { success: true, startStack };
     });
-    if (userStack.success) {
-      await this.redis.rebuyPlayer(tournamentId, userStack.session.entryFee, userStack.session.startStack);
+    if (result.success) {
+      await this.redis.rebuyPlayer(tournamentId, entryFee, startStack);
     }
-    return userStack.success ? userStack.session.startStack : 0;
+    return result.success ? startStack : 0;
   }
 
   async getDashboardInfo(tournamentId: string) {

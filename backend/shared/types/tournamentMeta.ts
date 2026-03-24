@@ -6,7 +6,10 @@ export interface Dashboard {
   activePlayer: number,
   totalBuyinAmount: number,
   rebuyUntil: number,
-  avgStack: number
+  avgStack: number,
+  tournamentName: string,
+  entryFee: number,
+  startStack: number,
 }
 
 export interface BlindField {

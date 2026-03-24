@@ -146,6 +146,8 @@ export class PaymentService {
             ante: false,
             tournamentId: session.id,
             smallBlind: 100,
+            entryFee: session.entryFee,
+            startStack: session.startStack,
           };
         }
         updatedState.players[dto.seatIndex] = newPlayer;
