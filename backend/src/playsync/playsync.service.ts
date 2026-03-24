@@ -1,7 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PlayerStatus } from '@prisma/client';
+import { PlayerStatus, TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
 import { TableEngine } from 'src/game-engine/table-engine';
@@ -21,19 +21,19 @@ export class PlaysyncService {
   async joinTable(tableId: string, userId?: string) {
     const tableState = await this.redis.getSnapShot(tableId);
     if (!tableState) throw new Error(`Table ${tableId} not found`);
-    if(userId !== null && userId !== undefined) {
+    if (userId !== null && userId !== undefined) {
       const seatIndex = tableState.players.findIndex(p => p?.id === userId);
       console.log(seatIndex)
-      return {tableState, seatIndex};
+      return { tableState, seatIndex };
     } else {
-      return {tableState, seatIndex: -1}
+      return { tableState, seatIndex: -1 }
     }
   }
 
   async findMyTables(userId: string) {
     const players = await this.prisma.tablePlayer.findMany({
       where: { userId: userId },
-      include : {
+      include: {
         tournament: {
           select: {
             name: true,
@@ -102,8 +102,8 @@ export class PlaysyncService {
 
     // Redis 저장
     await this.redis.saveSnapShot(tableId, state);
-    if(dto.action === ActionType.TIME_OUT) {
-      this.eventEmitter.emit('game.state.updated', {tableId, state: state})
+    if (dto.action === ActionType.TIME_OUT) {
+      this.eventEmitter.emit('game.state.updated', { tableId, state: state })
     }
     return state;
   }
@@ -112,7 +112,7 @@ export class PlaysyncService {
     const updates = state.players
       .filter(p => p !== null)
       .map(p => this.prisma.tablePlayer.updateMany({
-        where: { userId: p.id  },
+        where: { userId: p.id },
         data: { currentStack: p.stack }
       }));
     const success = await this.prisma.$transaction(updates) ? true : false;
@@ -179,7 +179,7 @@ export class PlaysyncService {
       await tx.tournamentParticipation.update({
         where: {
           tournamentId_userId:
-            { tournamentId: tournamentId, userId : winner.userId }
+            { tournamentId: tournamentId, userId: winner.userId }
         },
         data: {
           finalPlace: 1,
@@ -189,64 +189,107 @@ export class PlaysyncService {
       });
     });
   }
-  
-  public async processRebuy(tournamentId: string, userId: string) {
-    return 0;
+
+  // public async processRebuy(tournamentId: string, userId: string) {
+  //   return 0;
+  // }
+  public async processRebuy(tournamentId: string, tableId: string, userId: string): Promise<number> {
+    return new Promise(async (resolve) => {
+      let isResolved = false;
+      const timeoutMs = 15000;
+      // [웹소켓] 유저에게 리바인 확인 팝업 요청 전송
+      this.eventEmitter.emit('rebuy.request.sent', {
+        userId,
+        tableId,
+        deadline: Date.now() + timeoutMs
+      });
+
+      // [타이머] 15초 내 응답 없으면 자동 취소 (0 반환)
+      const timer = setTimeout(() => {
+        if (!isResolved) {
+          isResolved = true;
+          console.log(`[TIMEOUT] 유저 ${userId} 리바인 시간초과`);
+          resolve(0);
+        }
+      }, 15000);
+
+      // [이벤트] WsGateway에서 전달해주는 유저의 버튼 클릭 응답 대기
+      this.eventEmitter.once(`rebuy_res_${userId}`, async (accept: boolean) => {
+        if (!isResolved) {
+          isResolved = true;
+          clearTimeout(timer);
+
+          if (accept) {
+            try {
+              // 수락 시 기존 트랜잭션 로직 실행
+              const resultStack = await this.executeRebuyTransaction(tournamentId, userId);
+              resolve(resultStack);
+            } catch (error) {
+              console.error('리바인 트랜잭션 실패:', error.message);
+              resolve(0); // 포인트 부족 등 실패 시 0 반환
+            }
+          } else {
+            resolve(0); // 거절 시 0 반환
+          }
+        }
+      });
+    });
   }
 
-  // 리바인
-  // 리바인 관련 프론트엔드 구현 X 현재 무조건 return 0
-  // public async processRebuy(tournamentId: string, userId: string): Promise<number> {
-  //   const userStack = await this.prisma.$transaction(async (tx) => {
-  //     const user = await tx.user.findUnique({ where: { id: userId } });
-  //     const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
-  //     const session = await tx.tournament.findUnique({
-  //       where: { id: tournamentId },
-  //     });
-  //     const userInfo = await this.redis.getUserContext(tournamentId, userId);
-  //     if (!session || !user || !tournamentInfo || !userInfo) throw new Error('세션 혹은 유저 없음.');
+  // 리바인 트랜잭션
+  public async executeRebuyTransaction(tournamentId: string, userId: string): Promise<number> {
+    const userStack = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({ where: { id: userId } });
+      const tournamentInfo = await this.redis.getTournamentDashboard(tournamentId);
+      const session = await tx.tournament.findUnique({
+        where: { id: tournamentId },
+      });
+      const userInfo = await this.redis.getUserContext(tournamentId, userId);
+      if (!session || !user || !tournamentInfo || !userInfo) throw new Error('세션 혹은 유저 없음.');
 
-  //     const rebuyAmount = session.entryFee || 0;
-  //     const rebuyStack = session.startStack;
+      const rebuyAmount = session.entryFee || 0;
+      const rebuyStack = session.startStack;
 
-  //     if (user.points < rebuyAmount && tournamentInfo.isRegistrationOpen) return -1;
-  //     await tx.user.update({
-  //       where: { id: userId },
-  //       data: { points: { decrement: rebuyAmount } }
-  //     });
+      if (user.points < rebuyAmount && tournamentInfo.isRegistrationOpen) {
+        return { success: false, session };
+      }
+      await tx.user.update({
+        where: { id: userId },
+        data: { points: { decrement: rebuyAmount } }
+      });
 
-  //     await tx.pointTransaction.create({
-  //       data: {
-  //         userId,
-  //         amount: rebuyAmount * -1,
-  //         type: TransactionType.REBUY,
-  //         tournamentId,
-  //         description: `${session.name} 리바인 -${rebuyAmount}`
-  //       }
-  //     });
+      await tx.pointTransaction.create({
+        data: {
+          userId,
+          amount: rebuyAmount * -1,
+          type: TransactionType.REBUY,
+          tournamentId,
+          description: `${session.name} 리바인 -${rebuyAmount}`
+        }
+      });
 
-  //     await tx.tournament.update({
-  //       where: { id: tournamentId },
-  //       data: { totalBuyinAmount: { increment: session.entryFee } },
-  //     })
+      await tx.tournament.update({
+        where: { id: tournamentId },
+        data: { totalBuyinAmount: { increment: session.entryFee } },
+      })
 
-  //     await tx.tournamentParticipation.update({
-  //       where: { tournamentId_userId: { tournamentId, userId } },
-  //       data: { buyInCount: { increment: 1 } },
-  //     });
+      await tx.tournamentParticipation.update({
+        where: { tournamentId_userId: { tournamentId, userId } },
+        data: { buyInCount: { increment: 1 } },
+      });
 
-  //     await tx.tablePlayer.update({
-  //       where: { tableId_userId: { tableId: userInfo.tableId, userId } }, // tableId 관리 필요
-  //       data: { currentStack: { increment: rebuyStack } }
-  //     });
+      await tx.tablePlayer.update({
+        where: { tableId_userId: { tableId: userInfo.tableId, userId } }, // tableId 관리 필요
+        data: { currentStack: { increment: rebuyStack } }
+      });
 
-  //     return rebuyStack;
-  //   });
-  //   if (userStack !== 0) {
-  //     await this.redis.rebuyPlayer(tournamentId, userStack);
-  //   }
-  //   return userStack;
-  // }
+      return { success: true, session };
+    });
+    if (userStack.success) {
+      await this.redis.rebuyPlayer(tournamentId, userStack.session.entryFee, userStack.session.startStack);
+    }
+    return userStack.success ? userStack.session.startStack : 0;
+  }
 
   async getDashboardInfo(tournamentId: string) {
     const info = await this.redis.getFullTournamentInfo(tournamentId);

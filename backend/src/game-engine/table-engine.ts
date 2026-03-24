@@ -235,19 +235,22 @@ export class TableEngine {
    */
   private async handleHandEnd() {
     this.state.phase = GamePhase.HAND_END;
+    const callback = this.rebuyCallback;
 
-    if (this.rebuyCallback) {
-      for (const p of this.state.players.filter((p): p is TablePlayer => p != null)) {
-        if (p.stack === 0) {
-          const rebuyAmount = await this.rebuyCallback(p.id);
-          if (rebuyAmount > 0) {
-            // 즉시 stack 충전, 다음 핸드 참여
-            p.stack += rebuyAmount;
-            p.bet = 0;
-            p.hasFolded = false;
-            p.isAllIn = false;
-          }
-        }
+    if (callback) {
+      const brokePlayers = this.state.players.filter((p): p is TablePlayer => p != null && p.stack <= 0);
+      if (brokePlayers.length > 0) {
+        await Promise.all(
+          brokePlayers.map(async (p) => {
+            const rebuyAmount = await callback(p.id);
+            if (rebuyAmount > 0) {
+              p.stack += rebuyAmount;
+              p.bet = 0;
+              p.hasFolded = false;
+              p.isAllIn = false;
+            }
+          })
+        )
       }
     }
     // WAITING phase로 전환

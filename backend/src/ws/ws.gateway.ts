@@ -1,4 +1,4 @@
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { ConnectedSocket, MessageBody, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, WebSocketGateway } from '@nestjs/websockets';
 import { DealerService } from 'src/dealer/dealer.service';
@@ -20,6 +20,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private readonly playsync: PlaysyncService,
     private readonly redis: RedisService,
     private readonly jwtService: JwtService,
+    private readonly eventEmitter: EventEmitter2,
   ) { }
 
   private addToMap(map: Map<string, Set<WebSocket>>, id: string, client: WebSocket) {
@@ -119,6 +120,21 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     }
   }
+  // 유저 브로드캐스트 유틸리티
+  private sendToTableUser(tableId: string, userId: string, event: string, data: any) {
+    const sessions = this.tableSessions.get(tableId);
+    if (sessions) {
+      // 해당 테이블에 접속한 소켓들 중 userId가 일치하는 소켓 검색
+      for (const socket of sessions) {
+        if ((socket as any).userId === userId) {
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ event, data }));
+          }
+          break; // 찾았으면 루프 종료
+        }
+      }
+    }
+  }
 
   @SubscribeMessage('PLAYER_ACTION')
   async handlePlayerAction(@ConnectedSocket() client: any, @MessageBody() data: any) {
@@ -174,5 +190,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.broadcastToTournament(payload.tournamentId, 'renderSeatList', payload.state);
   }
 
+  @OnEvent('rebuy.request.sent')
+  handleRebuyRequest(payload: { userId: string, tableId: string, deadline: number }) {
+    this.sendToTableUser(payload.tableId, payload.userId, 'REBUY_PROMPT', {
+      deadline: payload.deadline
+    });
+  }
+
+  @SubscribeMessage('REBUY_RESPONSE')
+  handleRebuyResponse(@ConnectedSocket() client: any, @MessageBody() data: { accept: boolean }) {
+    const userId = (client as any).userId;
+    this.eventEmitter.emit(`rebuy.response.${userId}`, data.accept);
+  }
 
 }

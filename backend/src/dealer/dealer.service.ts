@@ -163,7 +163,7 @@ export class DealerService {
     if (!state) throw new Error('예기치 못한 오류가 발생했습니다.')
     if (winnerUserIds.length === 0) throw new Error("유효한 승자가 없습니다.");
     const engine = new TableEngine(state, async (playerId: string) => {
-      return await this.playsync.processRebuy(tournamentId, playerId);
+      return await this.playsync.processRebuy(tournamentId, tableId, playerId);
     });
     await engine.resolveWinner(winnerUserIds);
     for (const player of engine.state.players) {
