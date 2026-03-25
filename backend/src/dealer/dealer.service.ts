@@ -4,7 +4,6 @@ import { JwtService } from '@nestjs/jwt';
 import { Role } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { DealerDto } from 'shared/dto/dealer.dto';
-import { getCurrentBlindLevel } from 'shared/util/util';
 import { TableEngine } from 'src/game-engine/table-engine';
 import { ActionType, GamePhase, TablePlayer } from 'src/game-engine/types';
 import { PlaysyncService } from 'src/playsync/playsync.service';
@@ -76,6 +75,8 @@ export class DealerService {
     } catch (e) {
       console.log('타임아웃 제거 실패');
     }
+    console.log('tournamentId !!!!!!!!!!!!!! : ', tournamentId)
+    console.log('tableId !!!!!!!!!!!!!! : ', tableId)
     const blind = await this.redis.checkAndSyncBlindLevel(tournamentId);
     const state = await this.redis.getSnapShot(tableId);
     if (!blind) throw new Error('블라인드 정보가 없습니다.');
@@ -172,7 +173,8 @@ export class DealerService {
           playerId,
           tournamentInfo.entryFee,
           tournamentInfo.startStack,
-          tournamentInfo.tournamentName
+          tournamentInfo.tournamentName,
+          state
         );
       }
       : undefined;

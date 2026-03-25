@@ -38,21 +38,25 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const url = new URL(request.url, `http://${request.headers['host']}`);
       const tableId = url.searchParams.get('tableId');
       const token = url.searchParams.get('token');
-      const tournamentId = url.searchParams.get('tournamentId');
+      let tournamentId = url.searchParams.get('tournamentId');
 
       if (!token) throw new Error('필수 정보 누락');
       // JWT 검증 (딜러 토큰이든 유저 토큰이든 JwtService가 해석)
       const payload = await this.jwtService.verifyAsync(token);
-
+      
       // 소켓 객체에 유저 정보 저장 (나중에 액션 시 사용)
       (client as any).userId = payload.sub;
       (client as any).role = payload.role;
+      if (payload.tournamentId) {
+        console.log('토큰 검증 토너먼트', payload.tournamentId);
+        (client as any).tournamentId = payload.tournamentId;
+      }
 
       // 1. 자리 예매 시 (토너먼트 진입 전)
       if (tournamentId && !tableId) {
         (client as any).tournamentId = tournamentId;
         this.addToMap(this.tournamentSessions, tournamentId, client);
-        console.log(`User ${payload.sub} joined Reservation Room: ${tournamentId}`);
+        console.log(`자리예매토너먼트: ${tournamentId}`);
         return; // 예매 로직만 수행하므로 여기서 종료
       }
 
@@ -63,7 +67,8 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         const updatedState = await this.redis.getSnapShot(tableId);
         this.broadcastToTable(tableId, 'renderGame', updatedState);
-        console.log(`User ${payload.sub} joined Game Table: ${tableId}`);
+        console.log(`${payload.role} 플레이싱크 참여: ${tableId}`);
+        console.log(payload.tournamentId)
       }
 
     } catch (err) {
@@ -140,11 +145,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   async handlePlayerAction(@ConnectedSocket() client: any, @MessageBody() data: any) {
     const { tableId, userId, role } = client;
 
-    // 유저 권한 체크
-    // if (role !== 'USER') return { event: 'error', data: '플레이어만 가능한 액션입니다.' };
-
     try {
-      // GameService에서 실제 포커 로직 처리 (스택 차감, 턴 넘기기 등)
       const updatedState = await this.playsync.handleAction(userId, tableId, { action: data.action, amount: data.amount });
 
       // 해당 테이블의 모든 인원에게 변경된 상태 브로드캐스트
@@ -191,16 +192,19 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @OnEvent('rebuy.request.sent')
-  handleRebuyRequest(payload: { userId: string, tableId: string, deadline: number }) {
+  handleRebuyRequest(payload: { userId: string, tableId: string, deadline: number, userPoints: any, entryFee: number, tournamentName: string }) {
     this.sendToTableUser(payload.tableId, payload.userId, 'REBUY_PROMPT', {
-      deadline: payload.deadline
+      deadline: payload.deadline,
+      userPoints: payload.userPoints,
+      entryFee: payload.entryFee,
+      tournamentName: payload.tournamentName,
     });
   }
 
   @SubscribeMessage('REBUY_RESPONSE')
   handleRebuyResponse(@ConnectedSocket() client: any, @MessageBody() data: { accept: boolean }) {
     const userId = (client as any).userId;
-    this.eventEmitter.emit(`rebuy.response.${userId}`, data.accept);
+    this.eventEmitter.emit(`rebuy_res_${userId}`, data.accept);
   }
 
 }

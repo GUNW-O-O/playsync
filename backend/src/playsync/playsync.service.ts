@@ -21,7 +21,7 @@ export class PlaysyncService {
 
   async joinTable(tableId: string, userId?: string) {
     const tableState = await this.redis.getSnapShot(tableId);
-    if (!tableState) throw new Error(`Table ${tableId} not found`);
+    if (!tableState) throw new Error(`TableState ${tableId} not found`);
     if (userId !== null && userId !== undefined) {
       const seatIndex = tableState.players.findIndex(p => p?.id === userId);
       console.log(seatIndex)
@@ -188,10 +188,7 @@ export class PlaysyncService {
     });
   }
 
-  // public async processRebuy(tournamentId: string, userId: string) {
-  //   return 0;
-  // }
-  public async processRebuy(tournamentId: string, tableId: string, userId: string, entryFee: number, startStack: number, tournamentName: string): Promise<number> {
+  public async processRebuy(tournamentId: string, tableId: string, userId: string, entryFee: number, startStack: number, tournamentName: string, sharedState: TableState): Promise<number> {
     const userPoints = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { points: true }
@@ -232,6 +229,17 @@ export class PlaysyncService {
             try {
               // 수락 시 기존 트랜잭션 로직 실행
               const resultStack = await this.executeRebuyTransaction(tournamentId, tableId, userId, entryFee, startStack, tournamentName);
+              if (resultStack > 0) {
+                // [핵심] 메모리상의 state 객체를 즉시 업데이트 (아직 Redis 저장 전)
+                const player = sharedState.players.find(p => p?.id === userId);
+                if (player) {
+                  player.stack = resultStack; // 메모리 갱신
+                  player.isAllIn = false;
+                  player.hasFolded = false;
+                }
+                // [핵심] 임시 갱신된 state를 유저들에게 즉시 렌더링 (즉각 피드백)
+                this.eventEmitter.emit('game.state.updated', { tableId, state: sharedState });
+              }
               resolve(resultStack);
             } catch (error) {
               console.error('리바인 트랜잭션 실패:', error.message);

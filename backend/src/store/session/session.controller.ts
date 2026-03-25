@@ -15,26 +15,26 @@ export class SessionController {
 
   @Post()
   async create(@Body('dto') dto: CreateTournamentDto, @Body('blindStructure') blindStructure?: any) {
-    return this.sessionService.createSession(dto, blindStructure);
+    return await this.sessionService.createSession(dto, blindStructure);
   }
 
   @Get(':storeId')
   async findAll(@Param('storeId') storeId: string) {
-    return this.sessionService.getStoreAllSessions(storeId);
+    return await this.sessionService.getStoreAllSessions(storeId);
   }
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateTournamentDto) {
-    return this.sessionService.updateSession(id, dto);
+    return await this.sessionService.updateSession(id, dto);
   }
 
   @Patch(':id/start')
   async start(@Param('id') id: string) {
-    return this.sessionService.startSession(id);
+    return await this.sessionService.startSession(id);
   }
 
   @Patch(':id/complete')
   async complete(@Param('id') id: string) {
-    return this.sessionService.completeSession(id);
+    return await this.sessionService.completeSession(id);
   }
 }

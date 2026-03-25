@@ -10,6 +10,7 @@ export default function GameClient({ tableId, initialData, seatIndex, token, ini
   const [gameState, setGameState] = useState<TableState | null>(initialData || null);
   const [mySeatIndex, setMySeatIndex] = useState<number | null>(seatIndex ?? null);
   const [isDealer, setIsDealer] = useState<boolean>(initIsDealer || false); // 딜러 세션 여부
+  const [rebuyData, setRebuyData] = useState<any>(null);
 
   useEffect(() => {
     const wsUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL?.replace('http', 'ws')}/playsync?tableId=${tableId}&token=${token}`;
@@ -23,7 +24,12 @@ export default function GameClient({ tableId, initialData, seatIndex, token, ini
     socketRef.current = ws;
     ws.onmessage = (event) => {
       const { event: serverEvent, data } = JSON.parse(event.data);
-      if (serverEvent === 'renderGame') setGameState(data);
+      if (serverEvent === 'renderGame') {
+        setGameState(data);
+      }
+      else if (serverEvent === 'REBUY_PROMPT') {
+        setRebuyData(data);
+      }
     };
 
     return () => ws.close();
@@ -48,6 +54,16 @@ export default function GameClient({ tableId, initialData, seatIndex, token, ini
     }
   };
 
+  const handleRebuyAction = (accept: boolean) => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        event: 'REBUY_RESPONSE',
+        data: { accept }
+      }));
+    }
+    setRebuyData(null);
+  };
+
   return (
     <div className="flex h-screen w-screen bg-slate-950 text-white overflow-hidden p-2 gap-2">
       {/* 3/2 영역: 포커 테이블 (고정 레이아웃) */}
@@ -65,6 +81,8 @@ export default function GameClient({ tableId, initialData, seatIndex, token, ini
           mySeatIndex={mySeatIndex}
           isDealer={isDealer}
           onAction={sendAction}
+          onRebuyResponse={handleRebuyAction}
+          rebuyData={rebuyData}
         />
       </div>
     </div>

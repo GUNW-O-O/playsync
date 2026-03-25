@@ -1,8 +1,9 @@
 import { ActionType } from "@/app/types/game";
 import ActionTimer from "@/component/ActionTimer";
+import Router from "next/router";
 import { useEffect, useState } from "react";
 
-export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: any) {
+export default function ActionPanel({ state, mySeatIndex, isDealer, onAction, onRebuyResponse, rebuyData }: any) {
   if (!state) return <div className="text-slate-600 text-center mt-10 italic">게임 시작 대기 중...</div>;
 
   return (
@@ -10,14 +11,20 @@ export default function ActionPanel({ state, mySeatIndex, isDealer, onAction }: 
       {isDealer ? (
         <DealerSection state={state} onAction={onAction} />
       ) : (
-        <PlayerSection state={state} mySeatIndex={mySeatIndex} onAction={onAction} />
+        <PlayerSection
+          state={state}
+          mySeatIndex={mySeatIndex}
+          onAction={onAction}
+          rebuyData={rebuyData}
+          onRebuyResponse={onRebuyResponse}
+        />
       )}
     </div>
   );
 }
 
 // 플레이어 섹션 (BB 기준 슬라이더 포함)
-function PlayerSection({ state, mySeatIndex, onAction }: any) {
+function PlayerSection({ state, mySeatIndex, onAction, rebuyData, onRebuyResponse }: any) {
   const bigBlind = state.smallBlind * 2;
   const myPlayer = state.players[mySeatIndex];
   const [raiseVal, setRaiseVal] = useState(Math.min(bigBlind, myPlayer?.stack || 0));
@@ -32,8 +39,67 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
     }
   }, [state.currentTurnSeatIndex, state.phase]);
 
-  if (state.phase === 5) {
-    return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">핸드결과 대기 중...</div>;
+  const handleExit = () => {
+    onRebuyResponse(false);
+    Router.push('/playsync');
+  };
+
+  if (rebuyData) {
+    return (
+      <div className="flex flex-col gap-4 animate-in fade-in zoom-in duration-300">
+        <h2 className="text-rose-400 font-black text-sm uppercase flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+          </span>
+          Rebuy Opportunity
+        </h2>
+
+        <div className="bg-rose-950/30 p-4 rounded-xl border border-rose-500/20 space-y-4">
+          <div className="flex flex-col items-center gap-1">
+            <p className="text-[10px] text-rose-300/60 font-bold uppercase">Tournament</p>
+            <p className="text-white font-black text-lg">{rebuyData.tournamentName}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 py-2 border-y border-white/5">
+            <div className="text-center">
+              <p className="text-[9px] text-slate-500 font-bold uppercase">My Points</p>
+              <p className="text-sm font-black text-slate-200">{rebuyData.userPoints.points.toLocaleString()}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-[9px] text-slate-500 font-bold uppercase">Rebuy Fee</p>
+              <p className="text-sm font-black text-yellow-400">-{rebuyData.entryFee.toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onRebuyResponse(true)}
+              className="h-14 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-black text-sm transition-colors shadow-lg shadow-indigo-900/20"
+            >
+              REBUY & CONTINUE
+            </button>
+            <button
+              onClick={handleExit}
+              className="h-14 bg-slate-800 hover:bg-slate-700 rounded-xl font-black text-sm text-slate-400 transition-colors"
+            >
+              EXIT
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-2 space-y-1">
+          <ActionTimer key={rebuyData.deadline} deadline={rebuyData.deadline} />
+          <p className="text-[9px] text-center text-rose-400 font-bold tracking-tighter uppercase animate-pulse">
+            Decision Required Before Timeout
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state.phase === 5 || state.phase === 6) {
+    return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">핸드결과 / 리바인 대기 중...</div>;
   }
   if (state.currentTurnSeatIndex === -1 || state.phase === 0) {
     return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">게임시작 대기 중...</div>;
@@ -41,6 +107,7 @@ function PlayerSection({ state, mySeatIndex, onAction }: any) {
   if (state.currentTurnSeatIndex !== mySeatIndex) {
     return <div className="flex-1 flex items-center justify-center text-slate-500 font-bold italic animate-pulse">상대방 턴 대기 중...</div>;
   }
+
 
   return (
     <div className="flex flex-col gap-4">

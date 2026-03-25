@@ -38,14 +38,5 @@ export class PlaysyncController {
   async getDashboard(@Param('tournamentId') tournamentId: string) {
     return await this.playsyncService.getDashboardInfo(tournamentId);
   }
-  
-  @Post('rebuy')
-  @UseGuards(JwtAuthGuard)
-  async processRebuy(
-    @Body('tournamentId') tournamentId: string,
-    @Body('userId') userId: string,
-  ) {
-    return await this.playsyncService.processRebuy(tournamentId, userId);
-  }
 
 }
