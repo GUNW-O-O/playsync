@@ -86,6 +86,7 @@ export class RedisService {
       'totalBuyinAmount', dashboard.totalBuyinAmount,
       'rebuyUntil', dashboard.rebuyUntil,
       'avgStack', dashboard.avgStack,
+      'itmCount', dashboard.itmCount,
       // BlindField는 객체로 유지
       'blindField', JSON.stringify(blindField)
     );
@@ -112,6 +113,7 @@ export class RedisService {
         tournamentName: raw.tournamentName || '',
         entryFee: parseInt(raw.entryFee || '0'),
         startStack: parseInt(raw.startStack || '0'),
+        itmCount: parseInt(raw.itmCount || '0'),
       },
       blindField: blindField,
     };
@@ -137,10 +139,10 @@ export class RedisService {
     await this.redis.hset(`tournament:${id}:info`, 'dashboard', JSON.stringify(dashboard));
   }
 
-  async eliminatedPlayer(tournamentId: string, startStack: number, entryFee: number) {
+  async eliminatedPlayer(tournamentId: string, startStack: number, entryFee: number, playerCount: number) {
     const key = this.getInfoKey(tournamentId);
     await this.recalculateAvgStack(tournamentId, startStack, entryFee);
-    return await this.redis.hincrby(key, 'activePlayer', -1);
+    return await this.redis.hincrby(key, 'activePlayer', playerCount);
   }
 
   async rebuyPlayer(tournamentId: string, entryFee: number, startStack: number) {

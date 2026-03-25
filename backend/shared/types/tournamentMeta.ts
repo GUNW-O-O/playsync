@@ -10,6 +10,7 @@ export interface Dashboard {
   tournamentName: string,
   entryFee: number,
   startStack: number,
+  itmCount: number,
 }
 
 export interface BlindField {

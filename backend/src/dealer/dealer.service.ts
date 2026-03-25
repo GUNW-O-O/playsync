@@ -6,7 +6,7 @@ import { Queue } from 'bullmq';
 import { DealerDto } from 'shared/dto/dealer.dto';
 import { getCurrentBlindLevel } from 'shared/util/util';
 import { TableEngine } from 'src/game-engine/table-engine';
-import { ActionType, GamePhase } from 'src/game-engine/types';
+import { ActionType, GamePhase, TablePlayer } from 'src/game-engine/types';
 import { PlaysyncService } from 'src/playsync/playsync.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
@@ -179,13 +179,12 @@ export class DealerService {
 
     const engine = new TableEngine(state, rebuyCallback);
     await engine.resolveWinner(winnerUserIds);
-    for (const player of engine.state.players) {
-      if (player && player.stack <= 0) {
-        console.log('플레이어 제거됨');
-        await this.playsync.eliminatePlayer(tournamentId, player.id);
-      }
-    }
-    // DB 동기화: 핸드가 끝났으므로 모든 플레이어의 최종 스택을 PG에 저장
+
+    const eliminatedPlayers = engine.state.players
+      .filter((p): p is TablePlayer => p != null && p.stack <= 0).slice();
+
+    await this.playsync.eliminatePlayer(tournamentId, tableId, eliminatedPlayers, tournamentInfo);
+
     const isTxSuccess = await this.playsync.syncTableInventoryToDb(state);
     if (isTxSuccess) {
       await engine.initTable();
@@ -195,7 +194,5 @@ export class DealerService {
       throw new Error('DB 동기화 실패');
     }
   }
-
-
 
 }

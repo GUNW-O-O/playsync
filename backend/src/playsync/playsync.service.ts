@@ -4,8 +4,9 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PlayerStatus, TransactionType } from '@prisma/client';
 import { Queue } from 'bullmq';
 import { PlayerActionDto } from 'shared/dto/playsync.dto';
+import { Dashboard } from 'shared/types/tournamentMeta';
 import { TableEngine } from 'src/game-engine/table-engine';
-import { ActionType, GamePhase, TableState } from 'src/game-engine/types';
+import { ActionType, GamePhase, TablePlayer, TableState } from 'src/game-engine/types';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { RedisService } from 'src/redis/redis.service';
 
@@ -119,43 +120,45 @@ export class PlaysyncService {
     return success;
   }
 
-  // 1인 탈락
-  public async eliminatePlayer(tournamentId: string, userId: string) {
-    const user = await this.redis.getUserContext(tournamentId, userId);
-    if (!user) throw new Error('유저 없음.');
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const session = await tx.tournament.findUnique({
-        where: { id: tournamentId },
-      });
-      if (!session) throw new Error('세션 없음');
 
-      const isInTheMoney = session!.activePlayers <= session.itmCount;
-
-      await tx.tournamentParticipation.update({
+  // 탈락
+  public async eliminatePlayer(tournamentId: string, tableId: string, players: TablePlayer[], tournamentInfo: Dashboard) {
+    if (players.length === 0) return;
+    const playerIds = players.map(p => p.id);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const isInTheMoney = tournamentInfo.itmCount >= tournamentInfo.activePlayer;
+      const eliminatedRank = tournamentInfo.activePlayer;
+      await tx.tournamentParticipation.updateMany({
         where: {
-          tournamentId_userId:
-            { tournamentId: tournamentId, userId }
+          tournamentId,
+          userId: { in: playerIds }
         },
         data: {
-          finalPlace: session.activePlayers,
+          finalPlace: eliminatedRank,
           status: (isInTheMoney ? 'AWARDED' : 'ELIMINATED'),
-          prizeAmount: session.totalBuyinAmount,
+          prizeAmount: (isInTheMoney ? 1000 : 0),
         }
-      })
-      await tx.tablePlayer.delete({
-        where: { tableId_userId: { tableId: user.tableId, userId } },
       });
-      const updSession = await tx.tournament.update({
+      await tx.tablePlayer.deleteMany({
+        where: {
+          tableId,
+          userId: { in: playerIds }
+        }
+      });
+      await tx.tournament.update({
         where: { id: tournamentId },
-        data: { activePlayers: { decrement: 1 } }
+        data: { activePlayers: { decrement: playerIds.length } }
       });
-      return { success: true, updSession };
+      return { success: true, eliCount: playerIds.length }
     });
-    // 토너먼트 redis에서 생존자 -1
-    if (updated.success) {
-      const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId, updated.updSession.startStack, updated.updSession.entryFee);
-      await this.redis.updateSeatBitmap(tournamentId, user.tableId, user.seatIndex, false);
-      if (activePlayerCount === 2) {
+    if (result.success) {
+      const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId, tournamentInfo.startStack, tournamentInfo.entryFee, result.eliCount);
+      await Promise.all(
+        players.map(player =>
+          this.redis.updateSeatBitmap(tournamentId, tableId, player.seatIndex, false)
+        )
+      );
+      if (activePlayerCount <= 1) {
         await this.tournamentFinished(tournamentId)
       }
     }
@@ -163,28 +166,23 @@ export class PlaysyncService {
 
   // 최후 1인
   async tournamentFinished(tournamentId: string) {
-    const session = await this.prisma.tournament.findUnique({
-      where: { id: tournamentId },
-    });
-    const users = await this.prisma.tournamentParticipation.findFirst({
+    const user = await this.prisma.tournamentParticipation.findFirst({
       where: {
         tournamentId: tournamentId,
         status: PlayerStatus.PLAYING
       }
     });
-    if (!users) throw new Error('유저 없음.');
-    const winner = users[0]
-    if (!session) throw new Error('세션 없음.');
+    if (!user) throw new Error('유저 없음.');
     await this.prisma.$transaction(async (tx) => {
       await tx.tournamentParticipation.update({
         where: {
           tournamentId_userId:
-            { tournamentId: tournamentId, userId: winner.userId }
+            { tournamentId: tournamentId, userId: user.userId }
         },
         data: {
           finalPlace: 1,
           status: 'AWARDED',
-          prizeAmount: session.totalBuyinAmount,
+          prizeAmount: 3000,
         },
       });
     });
@@ -250,7 +248,7 @@ export class PlaysyncService {
   // 리바인 트랜잭션
   public async executeRebuyTransaction(tournamentId: string, tableId: string, userId: string, entryFee: number, startStack: number, tournamentName: string): Promise<number> {
     const result = await this.prisma.$transaction(async (tx) => {
-      const updatedUser = await tx.user.update({
+      await tx.user.update({
         where: {
           id: userId,
           points: { gte: entryFee }

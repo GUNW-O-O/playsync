@@ -182,6 +182,7 @@ export class SessionService {
       entryFee: game.entryFee,
       tournamentName: game.name,
       startStack: game.startStack,
+      itmCount: game.itmCount,
     }
     const blindField: BlindField = {
       isBreak: false,
