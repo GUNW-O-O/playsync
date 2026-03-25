@@ -1,9 +1,11 @@
+'use client'
 import { ActionType } from "@/app/types/game";
 import ActionTimer from "@/component/ActionTimer";
-import Router from "next/router";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function ActionPanel({ state, mySeatIndex, isDealer, onAction, onRebuyResponse, rebuyData }: any) {
+  const router = useRouter();
   if (!state) return <div className="text-slate-600 text-center mt-10 italic">게임 시작 대기 중...</div>;
 
   return (
@@ -17,6 +19,7 @@ export default function ActionPanel({ state, mySeatIndex, isDealer, onAction, on
           onAction={onAction}
           rebuyData={rebuyData}
           onRebuyResponse={onRebuyResponse}
+          router={router}
         />
       )}
     </div>
@@ -24,7 +27,7 @@ export default function ActionPanel({ state, mySeatIndex, isDealer, onAction, on
 }
 
 // 플레이어 섹션 (BB 기준 슬라이더 포함)
-function PlayerSection({ state, mySeatIndex, onAction, rebuyData, onRebuyResponse }: any) {
+function PlayerSection({ state, mySeatIndex, onAction, rebuyData, onRebuyResponse, router}: any) {
   const bigBlind = state.smallBlind * 2;
   const myPlayer = state.players[mySeatIndex];
   const [raiseVal, setRaiseVal] = useState(Math.min(bigBlind, myPlayer?.stack || 0));
@@ -41,7 +44,7 @@ function PlayerSection({ state, mySeatIndex, onAction, rebuyData, onRebuyRespons
 
   const handleExit = () => {
     onRebuyResponse(false);
-    Router.push('/playsync');
+    router.push('/playsync');
   };
 
   if (rebuyData) {
