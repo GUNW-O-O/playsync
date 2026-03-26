@@ -154,8 +154,10 @@ export class PlaysyncService {
     if (result.success) {
       const activePlayerCount = await this.redis.eliminatedPlayer(tournamentId, tournamentInfo.startStack, tournamentInfo.entryFee, result.eliCount);
       await Promise.all(
-        players.map(player =>
-          this.redis.updateSeatBitmap(tournamentId, tableId, player.seatIndex, false)
+        players.map(player => {
+          this.redis.updateSeatBitmap(tournamentId, tableId, player.seatIndex, false);
+          this.redis.deleteUserContext(tournamentId, player.id);
+        }
         )
       );
       if (activePlayerCount <= 1) {
@@ -169,7 +171,6 @@ export class PlaysyncService {
     const user = await this.prisma.tournamentParticipation.findFirst({
       where: {
         tournamentId: tournamentId,
-        status: PlayerStatus.PLAYING
       }
     });
     if (!user) throw new Error('유저 없음.');
@@ -227,26 +228,17 @@ export class PlaysyncService {
 
           if (accept) {
             try {
-              // 수락 시 기존 트랜잭션 로직 실행
               const resultStack = await this.executeRebuyTransaction(tournamentId, tableId, userId, entryFee, startStack, tournamentName);
               if (resultStack > 0) {
-                // [핵심] 메모리상의 state 객체를 즉시 업데이트 (아직 Redis 저장 전)
-                const player = sharedState.players.find(p => p?.id === userId);
-                if (player) {
-                  player.stack = resultStack; // 메모리 갱신
-                  player.isAllIn = false;
-                  player.hasFolded = false;
-                }
-                // [핵심] 임시 갱신된 state를 유저들에게 즉시 렌더링 (즉각 피드백)
                 this.eventEmitter.emit('game.state.updated', { tableId, state: sharedState });
               }
               resolve(resultStack);
             } catch (error) {
               console.error('리바인 트랜잭션 실패:', error.message);
-              resolve(0); // 포인트 부족 등 실패 시 0 반환
+              resolve(0);
             }
           } else {
-            resolve(0); // 거절 시 0 반환
+            resolve(0);
           }
         }
       });

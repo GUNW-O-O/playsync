@@ -202,6 +202,15 @@ export class TableEngine {
     })
   }
 
+  // 상태만 초기화
+  private resetStatus() {
+    this.state.players.filter(p => p !== null).forEach(p => {
+      p.hasFolded = false;
+      p.hasChecked = false;
+      p.isAllIn = false;
+    })
+  }
+
   // 공통 베팅 처리 (bet, totalContributed 동시 업데이트)
   private executeBet(player: TablePlayer, amount: number) {
     player.stack -= amount;
@@ -236,6 +245,7 @@ export class TableEngine {
   private async handleHandEnd() {
     this.state.phase = GamePhase.HAND_END;
     const callback = this.rebuyCallback;
+    this.resetStatus();
 
     if (callback) {
       const brokePlayers = this.state.players.filter((p): p is TablePlayer => p != null && p.stack <= 0);

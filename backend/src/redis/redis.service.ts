@@ -250,6 +250,12 @@ export class RedisService {
     return raw ? JSON.parse(raw) : null;
   }
 
+  // 유저 정보 삭제
+  async deleteUserContext(tournamentId: string, userId: string) {
+    const key = `tournament:${tournamentId}:user`;
+    await this.redis.hdel(key, userId);
+  }
+
   // 대회 종료시 redis 정리
   async deleteTournament(tournamentId: string, tables: string[]) {
     const pipe = this.redis.pipeline();
