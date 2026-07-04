@@ -141,8 +141,9 @@ export class RedisService {
 
   async eliminatedPlayer(tournamentId: string, startStack: number, entryFee: number, playerCount: number) {
     const key = this.getInfoKey(tournamentId);
+    const activePlayer = await this.redis.hincrby(key, 'activePlayer', -playerCount);
     await this.recalculateAvgStack(tournamentId, startStack, entryFee);
-    return await this.redis.hincrby(key, 'activePlayer', playerCount);
+    return activePlayer;
   }
 
   async rebuyPlayer(tournamentId: string, entryFee: number, startStack: number) {
@@ -240,7 +241,7 @@ export class RedisService {
   async setUserContext(tournamentId: string, userId: string, tableId: string, seatIndex: number, status: string) {
     const key = `tournament:${tournamentId}:user`;
     await this.redis.hset(key, userId, JSON.stringify({ tableId: tableId, seatIndex: seatIndex, status: status }));
-    this.redis.expire(`user:${userId}`, 86400);
+    await this.redis.expire(key, 86400);
   }
 
   // 유저 위치 정보 가져오기

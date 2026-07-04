@@ -113,7 +113,7 @@ export class PlaysyncService {
     const updates = state.players
       .filter(p => p !== null)
       .map(p => this.prisma.tablePlayer.updateMany({
-        where: { userId: p.id },
+        where: { userId: p.id, tableId: p.tableId },
         data: { currentStack: p.stack }
       }));
     const success = await this.prisma.$transaction(updates) ? true : false;
@@ -171,6 +171,7 @@ export class PlaysyncService {
     const user = await this.prisma.tournamentParticipation.findFirst({
       where: {
         tournamentId: tournamentId,
+        status: PlayerStatus.PLAYING,
       }
     });
     if (!user) throw new Error('유저 없음.');
